@@ -129,8 +129,13 @@
 .question-admin-actions .settle-yes { border-color: #91d5bd; color: var(--success); }
 .question-admin-actions .settle-no,.question-admin-actions .danger-small { border-color: #efb2b5; color: var(--danger); }
 .settled-label { grid-column: 1/-1; display: flex; align-items: center; gap: 5px; color: var(--success); font-size: 11px; font-weight: 800; }
+.nested-admin-card { margin: 12px 0 0; background: #f8fafc; }
+.prediction-admin-table>div { grid-template-columns: 130px minmax(230px,1fr) 70px 70px 150px; }
+.prediction-admin-table>div>span:nth-child(2) { display: flex; flex-direction: column; gap: 2px; }
+.prediction-admin-table small { color: var(--muted); font-size: 10px; }
 
 @media(max-width:760px){
   .question-admin-form,.admin-question-list>form { grid-template-columns: 1fr; }
   .question-admin-actions,.settled-label { grid-column: 1; }
+  .prediction-admin-table>div { min-width: 760px; }
 }
