@@ -153,11 +153,19 @@ function SportsHeader({
   user?: UserIdentity | null;
   onChange: (user: UserIdentity | null) => void;
 }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const closeMobileMenu = () => setMobileMenuOpen(false);
   return (
     <>
       <header className="sports-header">
-        <button className="mobile-menu" aria-label="Abrir menú">
-          <Menu />
+        <button
+          className="mobile-menu"
+          aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-navigation"
+          onClick={() => setMobileMenuOpen((open) => !open)}
+        >
+          {mobileMenuOpen ? <X /> : <Menu />}
         </button>
         <NavLink to="/" className="wordmark">
           <b>KURI</b>
@@ -175,6 +183,16 @@ function SportsHeader({
           <UserRound className="user-icon" />
         )}
       </header>
+      {mobileMenuOpen && (
+        <div className="mobile-navigation-backdrop" onClick={closeMobileMenu}>
+          <nav id="mobile-navigation" className="mobile-navigation" onClick={(event) => event.stopPropagation()}>
+            <NavLink to="/" onClick={closeMobileMenu}><HomeIcon /> Inicio</NavLink>
+            <a href="/#markets" onClick={closeMobileMenu}><Target /> Partidos</a>
+            <NavLink to="/ranking" onClick={closeMobileMenu}><Trophy /> Ranking</NavLink>
+            <NavLink to="/admin/login" onClick={closeMobileMenu}><Shield /> Administrador</NavLink>
+          </nav>
+        </div>
+      )}
       <div className="sports-nav">
         <span className="ball">●</span>
         <b>Fútbol</b>
