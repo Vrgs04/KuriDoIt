@@ -486,7 +486,7 @@ function Home() {
           headers: { Authorization: `Bearer ${user.token}` },
         }),
       );
-      setMsg(removing ? "PREDICCIÓN ELIMINADA" : "PREDICCIÓN GUARDADA");
+      setMsg(removing ? "" : "PREDICCIÓN GUARDADA");
     } catch (e) {
       setMsg((e as Error).message);
     }
@@ -523,9 +523,9 @@ function Home() {
       </section>
       {msg && (
         <div
-          className={`toast ${["PREDICCIÓN GUARDADA", "PREDICCIÓN ELIMINADA"].includes(msg) ? "success" : ""}`}
+          className={`toast ${msg === "PREDICCIÓN GUARDADA" ? "success" : ""}`}
         >
-          {["PREDICCIÓN GUARDADA", "PREDICCIÓN ELIMINADA"].includes(msg) && <Check />}
+          {msg === "PREDICCIÓN GUARDADA" && <Check />}
           {msg}
         </div>
       )}
@@ -541,6 +541,10 @@ function Home() {
                 <h2>Haz tus predicciones</h2>
               </div>
               <small>Acierto suma · fallo resta</small>
+            </div>
+            <div className="prediction-rules">
+              <Target />
+              <p><b>¿Cómo funcionan las predicciones?</b> Elige solo las que quieras jugar. Si aciertas, sumas los puntos indicados; si fallas, se te descuentan esos mismos puntos. Los resultados serán visibles después del partido.</p>
             </div>
             {questions.length ? (
               <div className="question-list">
@@ -675,8 +679,7 @@ function RankingTable({
                 ))
               ) : (
                 <p className="visibility-note">
-                  <Clock3 /> Las predicciones aparecen 30 minutos antes del
-                  partido.
+                  <Clock3 /> Las predicciones y sus resultados serán visibles después del partido.
                 </p>
               )}
             </div>

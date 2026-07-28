@@ -10,7 +10,7 @@ PWA interna de predicciones para partidos de Kuriyama. Cada partido contiene pre
 - `public/` y configuración `vite-plugin-pwa`: manifest, icono, service worker y caché segura de lectura pública.
 - `wrangler.jsonc`: Pages y binding D1 obligatorio `DB`.
 
-Las predicciones siempre validan en servidor el usuario, partido, pregunta y cierre. Cada usuario puede responder cualquier subconjunto de preguntas y modificar su respuesta mientras siga abierto el partido. `UNIQUE(user_id, question_id)` evita duplicados concurrentes. Las respuestas de terceros solo se exponen desde 30 minutos antes del inicio; la respuesta propia permanece visible.
+Las predicciones siempre validan en servidor el usuario, partido, pregunta y cierre. Cada usuario puede responder cualquier subconjunto de preguntas, modificar su respuesta o eliminarla mientras siga abierto el partido. `UNIQUE(user_id, question_id)` evita duplicados concurrentes. Las respuestas de terceros solo se exponen cuando la pregunta ya fue resuelta después del partido; la respuesta propia permanece visible.
 
 ## Instalación y desarrollo
 

@@ -115,6 +115,10 @@ button,a { touch-action: manipulation; }
 .ranking-predictions article>strong { color: var(--primary); }
 .ranking-predictions article>em { font-size: 11px; font-style: normal; font-weight: 800; text-align: right; }
 .visibility-note { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--muted); font-size: 11px; }
+.prediction-rules { margin: 0 0 10px; padding: 10px 12px; display: flex; align-items: flex-start; gap: 9px; border: 1px solid #b9d8f3; border-radius: 6px; background: #edf6ff; color: #31536f; }
+.prediction-rules svg { flex: none; width: 17px; color: var(--primary); }
+.prediction-rules p { margin: 0; font-size: 11px; line-height: 1.45; }
+.prediction-rules b { color: var(--primary-dark); }
 
 @media (max-width:760px) {
   .match-selector { grid-template-columns: repeat(2,minmax(0,1fr)); }
