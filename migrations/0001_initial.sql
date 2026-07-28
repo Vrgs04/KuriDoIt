@@ -1,0 +1,12 @@
+PRAGMA foreign_keys = ON;
+CREATE TABLE users (id TEXT PRIMARY KEY, name TEXT NOT NULL CHECK(length(name) BETWEEN 2 AND 80), normalized_name TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE matches (id TEXT PRIMARY KEY, opponent TEXT NOT NULL, kuriyama_side TEXT NOT NULL CHECK(kuriyama_side IN ('HOME','AWAY')), kickoff_at TEXT NOT NULL, picks_close_at TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('DRAFT','OPEN','LOCKED','FINISHED','CANCELLED')), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE markets (id TEXT PRIMARY KEY, match_id TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE, market_type TEXT NOT NULL, title TEXT NOT NULL, line REAL, status TEXT NOT NULL DEFAULT 'OPEN' CHECK(status IN ('OPEN','CLOSED','DISABLED','SETTLED')), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE market_options (id TEXT PRIMARY KEY, market_id TEXT NOT NULL REFERENCES markets(id) ON DELETE CASCADE, label TEXT NOT NULL, line_value REAL, decimal_odds REAL NOT NULL CHECK(decimal_odds >= 1), settlement_status TEXT NOT NULL DEFAULT 'PENDING' CHECK(settlement_status IN ('PENDING','WON','LOST','VOID')), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE picks (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), match_id TEXT NOT NULL REFERENCES matches(id), market_id TEXT NOT NULL REFERENCES markets(id), market_option_id TEXT NOT NULL REFERENCES market_options(id), odds_snapshot REAL NOT NULL CHECK(odds_snapshot >= 1), status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING','WON','LOST','VOID')), points_awarded REAL NOT NULL DEFAULT 0 CHECK(points_awarded >= 0), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, settled_at TEXT, UNIQUE(user_id, match_id));
+CREATE INDEX idx_matches_status_kickoff ON matches(status, kickoff_at);
+CREATE INDEX idx_markets_match ON markets(match_id, status);
+CREATE INDEX idx_options_market ON market_options(market_id);
+CREATE INDEX idx_picks_user ON picks(user_id, created_at DESC);
+CREATE INDEX idx_picks_status ON picks(status);
+CREATE INDEX idx_picks_filters ON picks(match_id, market_id, created_at DESC);
