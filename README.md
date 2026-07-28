@@ -1,6 +1,6 @@
 # KuriDoIt
 
-PWA interna para que empleados hagan un pick por partido, acumulen puntos según el momio decimal congelado y compitan en un ranking. Incluye panel administrativo, API real sobre Cloudflare Pages Functions y persistencia Cloudflare D1.
+PWA interna de predicciones para partidos de Kuriyama. Cada partido contiene preguntas opcionales con respuesta Sí/No y un valor fijo: acertar suma el valor y fallar resta exactamente el mismo valor. Incluye panel administrativo, ranking desplegable, API sobre Cloudflare Pages Functions y persistencia D1.
 
 ## Arquitectura
 
@@ -10,7 +10,7 @@ PWA interna para que empleados hagan un pick por partido, acumulen puntos según
 - `public/` y configuración `vite-plugin-pwa`: manifest, icono, service worker y caché segura de lectura pública.
 - `wrangler.jsonc`: Pages y binding D1 obligatorio `DB`.
 
-Los picks siempre consultan en servidor el partido, mercado y opción; se valida el cierre y se copia el momio vigente a `odds_snapshot`. La restricción `UNIQUE(user_id, match_id)` evita duplicados concurrentes. El leaderboard se calcula desde los picks resueltos y desempata por victorias y momio ganador promedio.
+Las predicciones siempre validan en servidor el usuario, partido, pregunta y cierre. Cada usuario puede responder cualquier subconjunto de preguntas y modificar su respuesta mientras siga abierto el partido. `UNIQUE(user_id, question_id)` evita duplicados concurrentes. Las respuestas de terceros solo se exponen desde 30 minutos antes del inicio; la respuesta propia permanece visible.
 
 ## Instalación y desarrollo
 
@@ -51,7 +51,7 @@ Se puede generar el hash con `npx wrangler secret`/una herramienta bcrypt confia
 
 ## D1 y migraciones
 
-La migración `0001_initial.sql` crea `users`, `matches`, `markets`, `market_options` y `picks`, con claves foráneas, checks, índices y restricciones únicas. Para producción:
+Las migraciones crean el esquema legado y las tablas actuales `questions` y `predictions`, con claves foráneas, checks, índices y restricciones únicas. Para producción:
 
 ```bash
 npx wrangler d1 migrations apply kuridoit-db --remote
@@ -61,9 +61,9 @@ No ejecutar hasta crear la base, colocar su ID real y revisar el destino. Toda e
 
 ## API
 
-Pública/usuario: `POST /api/users`, `GET /api/matches/current`, `GET /api/matches`, `GET /api/markets/:matchId`, `POST /api/picks`, `GET /api/users/:id/picks`, `GET /api/leaderboard`.
+Pública/usuario: `POST /api/users`, `GET /api/matches/open`, `GET /api/questions/:matchId`, `POST /api/predictions`, `GET /api/users/:id/predictions` y `GET /api/leaderboard`.
 
-Administración: `POST /api/admin/login`, `POST /api/admin/logout`, `GET /api/admin/dashboard`, CRUD de escritura para `/api/admin/matches`, `/api/admin/markets`, `/api/admin/options`, `POST /api/admin/settle` y `GET /api/admin/picks` con filtros `user`, `match`, `market`, `status`. Todas las rutas administrativas (excepto login/logout) verifican la cookie firmada en servidor.
+Administración: login/logout/dashboard, partidos y CRUD de `/api/admin/questions`; `POST /api/admin/questions/settle` resuelve una pregunta completa y asigna puntos positivos, negativos o cero si se anula. Todas las rutas administrativas verifican la cookie firmada en servidor.
 
 ## Despliegue en Cloudflare Pages
 
