@@ -1,7 +1,14 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "kuriyama-picks",
-  "pages_build_output_dir": "dist",
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "kuridoit",
+  "pages_build_output_dir": "./dist",
   "compatibility_date": "2026-07-28",
-  "d1_databases": [{ "binding": "DB", "database_name": "kuriyama-picks", "database_id": "REPLACE_WITH_D1_DATABASE_ID" }]
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kuridoit-db",
+      "database_id": "d1f89962-bccc-4637-b3dc-d9b29b438e18"
+    }
+  ]
 }
