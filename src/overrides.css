@@ -3,3 +3,28 @@
 .admin-login {
   background: var(--navy);
 }
+
+.account-menu { position: relative; margin-left: auto; }
+.account-trigger { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border: 0; border-radius: 5px; background: transparent; color: white; font-weight: 700; }
+.account-trigger:hover { background: #ffffff18; }
+.account-trigger svg:last-child { width: 14px; }
+.account-popover { position: absolute; z-index: 70; top: calc(100% + 8px); right: 0; width: 270px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); box-shadow: 0 8px 28px #07152535; }
+.account-popover > button { width: 100%; padding: 9px; display: flex; align-items: center; gap: 8px; border: 0; border-radius: 4px; background: transparent; color: var(--text); text-align: left; }
+.account-popover > button:hover { background: var(--surface-2); }
+.account-popover .delete-account { color: var(--danger); }
+.account-name { display: flex; align-items: center; gap: 8px; padding: 7px 8px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.account-popover label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 12px; }
+.account-popover input { width: 100%; padding: 9px; border: 1px solid var(--border); border-radius: 4px; }
+.account-actions { margin-top: 9px; display: flex; justify-content: flex-end; gap: 7px; }
+.account-actions button { padding: 7px 10px; border: 0; border-radius: 4px; background: var(--surface-2); }
+.account-actions .save-account { background: var(--primary); color: white; }
+.account-actions .danger-button { background: var(--danger); color: white; }
+.delete-confirm { padding: 8px; border-top: 1px solid var(--border); }
+.delete-confirm p { margin: 3px 0; color: var(--muted); font-size: 12px; }
+.account-popover .error { margin: 8px 4px 0; font-size: 11px; }
+
+@media (max-width: 760px) {
+  .account-trigger span { max-width: 105px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .account-trigger svg:last-child { display: none; }
+  .account-popover { position: fixed; top: 52px; right: 8px; left: 8px; width: auto; }
+}

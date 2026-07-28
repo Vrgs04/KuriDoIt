@@ -8,6 +8,8 @@ const json = (data: unknown, status = 200, headers: HeadersInit = {}) => Respons
 const id = () => crypto.randomUUID()
 const now = () => new Date().toISOString()
 const norm = (s: string) => s.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ')
+async function hashToken(token: string) { const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)); return [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('') }
+async function userToken(request: Request, db: D1Database, userId: string) { const token = request.headers.get('Authorization')?.match(/^Bearer (.+)$/)?.[1]; if (!token) return false; const user = await db.prepare('SELECT id FROM users WHERE id=? AND access_token_hash=? AND deleted_at IS NULL').bind(userId, await hashToken(token)).first(); return Boolean(user) }
 const text = z.string().trim().min(2).max(80)
 const matchSchema = z.object({ opponent: text, kuriyama_side: z.enum(['HOME','AWAY']), kickoff_at: z.string().datetime(), picks_close_at: z.string().datetime(), status: z.enum(['DRAFT','OPEN','LOCKED','FINISHED','CANCELLED']) }).refine(v => new Date(v.picks_close_at) <= new Date(v.kickoff_at), 'El cierre debe ser anterior al inicio')
 const marketSchema = z.object({ match_id: z.string().uuid(), market_type: z.string().min(2).max(40), title: text, line: z.number().nullable().optional(), status: z.enum(['OPEN','CLOSED','DISABLED','SETTLED']).default('OPEN') })
@@ -35,9 +37,23 @@ async function route(c: Ctx) {
   const db = c.env.DB
   if (method === 'POST' && path === '/users') {
     const { name } = await body(c.request, z.object({ name: text }))
-    const normalized = norm(name); let user = await db.prepare('SELECT * FROM users WHERE normalized_name=?').bind(normalized).first()
-    if (!user) { const userId = id(); await db.prepare('INSERT INTO users(id,name,normalized_name) VALUES(?,?,?)').bind(userId, name, normalized).run(); user = await db.prepare('SELECT * FROM users WHERE id=?').bind(userId).first() }
-    return json(user, 201)
+    const normalized = norm(name); let user = await db.prepare('SELECT id,name,normalized_name,created_at,updated_at FROM users WHERE normalized_name=? AND deleted_at IS NULL').bind(normalized).first()
+    const token = `${id()}${id()}`, tokenHash = await hashToken(token)
+    if (!user) { const userId = id(); await db.prepare('INSERT INTO users(id,name,normalized_name,access_token_hash) VALUES(?,?,?,?)').bind(userId, name, normalized, tokenHash).run(); user = await db.prepare('SELECT id,name,normalized_name,created_at,updated_at FROM users WHERE id=?').bind(userId).first() }
+    else await db.prepare('UPDATE users SET access_token_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(tokenHash, user.id).run()
+    return json({ ...user, token }, 201)
+  }
+  const userAccount = path.match(/^\/users\/([^/]+)$/)
+  if (userAccount && method === 'PUT') {
+    if (!(await userToken(c.request, db, userAccount[1]))) return json({ error: 'Sesión de usuario inválida' }, 401)
+    const { name } = await body(c.request, z.object({ name: text })); const normalized = norm(name)
+    try { await db.prepare('UPDATE users SET name=?,normalized_name=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND deleted_at IS NULL').bind(name, normalized, userAccount[1]).run() } catch { return json({ error: 'Ese nombre ya está en uso' }, 409) }
+    return json(await db.prepare('SELECT id,name,normalized_name,created_at,updated_at FROM users WHERE id=?').bind(userAccount[1]).first())
+  }
+  if (userAccount && method === 'DELETE') {
+    if (!(await userToken(c.request, db, userAccount[1]))) return json({ error: 'Sesión de usuario inválida' }, 401)
+    await db.prepare("UPDATE users SET name='Cuenta eliminada',normalized_name='deleted-'||id,access_token_hash=NULL,deleted_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(userAccount[1]).run()
+    return json({ ok: true })
   }
   if (method === 'GET' && path === '/matches/current') {
     const match = await db.prepare("SELECT * FROM matches WHERE status='OPEN' AND kickoff_at>? AND picks_close_at>? ORDER BY kickoff_at LIMIT 1").bind(now(), now()).first()
@@ -58,7 +74,7 @@ async function route(c: Ctx) {
   }
   const userPicks = path.match(/^\/users\/([^/]+)\/picks$/)
   if (method === 'GET' && userPicks) return json((await db.prepare('SELECT p.*,m.opponent,m.kuriyama_side,m.kickoff_at,mk.title market_title,o.label option_label FROM picks p JOIN matches m ON m.id=p.match_id JOIN markets mk ON mk.id=p.market_id JOIN market_options o ON o.id=p.market_option_id WHERE p.user_id=? ORDER BY p.created_at DESC').bind(userPicks[1]).all()).results)
-  if (method === 'GET' && path === '/leaderboard') return json((await db.prepare("SELECT u.id,u.name,ROUND(COALESCE(SUM(p.points_awarded),0),2) points,SUM(CASE WHEN p.status='WON' THEN 1 ELSE 0 END) won,SUM(CASE WHEN p.status='LOST' THEN 1 ELSE 0 END) lost,SUM(CASE WHEN p.status='PENDING' THEN 1 ELSE 0 END) pending,COUNT(p.id) total,COALESCE(AVG(CASE WHEN p.status='WON' THEN p.odds_snapshot END),0) avg_winning_odds FROM users u LEFT JOIN picks p ON p.user_id=u.id GROUP BY u.id ORDER BY points DESC,won DESC,avg_winning_odds DESC,u.created_at").all()).results)
+  if (method === 'GET' && path === '/leaderboard') return json((await db.prepare("SELECT u.id,u.name,ROUND(COALESCE(SUM(p.points_awarded),0),2) points,SUM(CASE WHEN p.status='WON' THEN 1 ELSE 0 END) won,SUM(CASE WHEN p.status='LOST' THEN 1 ELSE 0 END) lost,SUM(CASE WHEN p.status='PENDING' THEN 1 ELSE 0 END) pending,COUNT(p.id) total,COALESCE(AVG(CASE WHEN p.status='WON' THEN p.odds_snapshot END),0) avg_winning_odds FROM users u LEFT JOIN picks p ON p.user_id=u.id WHERE u.deleted_at IS NULL GROUP BY u.id ORDER BY points DESC,won DESC,avg_winning_odds DESC,u.created_at").all()).results)
   if (method === 'POST' && path === '/admin/login') {
     const { password } = await body(c.request,z.object({password:z.string().min(1).max(200)}))
     if (!c.env.ADMIN_PASSWORD_HASH || !c.env.SESSION_SECRET || !(await compare(password,c.env.ADMIN_PASSWORD_HASH))) return json({error:'Credenciales incorrectas'},401)

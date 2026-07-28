@@ -1,18 +1,40 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
-import { Check, ChevronDown, Clock3, HomeIcon, LogOut, Menu, Shield, Target, Trophy, UserRound, WifiOff, X } from 'lucide-react'
+import { Check, ChevronDown, Clock3, HomeIcon, LogOut, Menu, Pencil, Shield, Target, Trash2, Trophy, UserRound, WifiOff, X } from 'lucide-react'
 import { api, type MarketRow, type Match, type Pick } from './api'
 
 const fmt = (n: number) => Number(n).toFixed(2)
 const date = (s: string) => new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(s))
+type UserIdentity = { id: string; name: string; token?: string }
 
-function SportsHeader() {
+function AccountMenu({ user, onChange }: { user: UserIdentity; onChange: (user: UserIdentity | null) => void }) {
+  const [open, setOpen] = useState(false), [editing, setEditing] = useState(false), [confirmDelete, setConfirmDelete] = useState(false), [name, setName] = useState(user.name), [error, setError] = useState('')
+  const auth = { Authorization: `Bearer ${user.token ?? ''}` }
+  async function save(e: FormEvent) { e.preventDefault(); setError(''); try { const updated = await api<UserIdentity>(`/users/${user.id}`, { method: 'PUT', headers: auth, body: JSON.stringify({ name }) }); const next = { ...user, ...updated }; localStorage.setItem('kuri_user', JSON.stringify(next)); onChange(next); setEditing(false) } catch (x) { setError((x as Error).message) } }
+  async function remove() { setError(''); try { await api(`/users/${user.id}`, { method: 'DELETE', headers: auth }); localStorage.removeItem('kuri_user'); onChange(null); location.assign('/welcome') } catch (x) { setError((x as Error).message) } }
+  return <div className="account-menu">
+    <button className="account-trigger" onClick={() => setOpen(!open)}><UserRound/><span>{user.name}</span><ChevronDown/></button>
+    {open && <div className="account-popover">
+      {editing ? <form onSubmit={save}>
+        <label>Tu nombre<input value={name} onChange={e => setName(e.target.value)} minLength={2} maxLength={80} autoFocus/></label>
+        <div className="account-actions"><button type="button" onClick={() => setEditing(false)}>Cancelar</button><button className="save-account">Guardar</button></div>
+      </form> : <>
+        <div className="account-name"><UserRound/><b>{user.name}</b></div>
+        <button onClick={() => setEditing(true)}><Pencil/> Editar nombre</button>
+        {confirmDelete ? <div className="delete-confirm"><p>¿Eliminar tu cuenta? Tus picks quedarán anonimizados.</p><div className="account-actions"><button onClick={() => setConfirmDelete(false)}>Cancelar</button><button className="danger-button" onClick={remove}>Eliminar</button></div></div> : <button className="delete-account" onClick={() => setConfirmDelete(true)}><Trash2/> Eliminar cuenta</button>}
+      </>}
+      {error && <p className="error">{error}</p>}
+    </div>}
+  </div>
+}
+
+function SportsHeader({ user, onChange }: { user?: UserIdentity | null; onChange: (user: UserIdentity | null) => void }) {
   return <>
     <header className="sports-header">
       <button className="mobile-menu" aria-label="Abrir menú"><Menu /></button>
       <NavLink to="/" className="wordmark"><b>KURI</b><span>DOIT</span></NavLink>
-      <nav className="desktop-nav"><NavLink to="/">Inicio</NavLink><a href="#markets">Partidos</a><NavLink to="/ranking">Ranking</NavLink></nav>
-      <UserRound className="user-icon" />
+      <nav className="desktop-nav"><NavLink to="/">Inicio</NavLink><a href="#markets">Partidos</a><NavLink to="/ranking">Ranking</NavLink><NavLink to="/admin/login">Admin</NavLink></nav>
+      {user ? <AccountMenu user={user} onChange={onChange}/> : <UserRound className="user-icon" />}
     </header>
     <div className="sports-nav"><span className="ball">●</span><b>Fútbol</b><a href="#markets">Próximos partidos</a><a href="#my-picks">Mis Picks</a></div>
   </>
@@ -24,8 +46,10 @@ function MobileBottomNav() {
 
 function Shell({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(navigator.onLine)
+  const [user, setUser] = useState<UserIdentity | null>(() => JSON.parse(localStorage.getItem('kuri_user') || 'null'))
   useEffect(() => { const sync = () => setOnline(navigator.onLine); addEventListener('online', sync); addEventListener('offline', sync); return () => { removeEventListener('online', sync); removeEventListener('offline', sync) } }, [])
-  return <><SportsHeader />{!online && <div className="offline"><WifiOff/> Sin conexión. Necesitas Internet para registrar picks.</div>}<main className="app-main">{children}</main><MobileBottomNav /></>
+  useEffect(() => { if (user && !user.token) api<UserIdentity>('/users', { method: 'POST', body: JSON.stringify({ name: user.name }) }).then(fresh => { localStorage.setItem('kuri_user', JSON.stringify(fresh)); setUser(fresh) }).catch(() => {}) }, [user])
+  return <><SportsHeader user={user} onChange={setUser}/>{!online && <div className="offline"><WifiOff/> Sin conexión. Necesitas Internet para registrar picks.</div>}<main className="app-main">{children}</main><MobileBottomNav /></>
 }
 
 function MatchCard({ match, marketCount }: { match: Match; marketCount: number }) {
@@ -66,7 +90,7 @@ function Welcome() {
 }
 
 function Home() {
-  const user = JSON.parse(localStorage.getItem('kuri_user') || 'null') as { id: string; name: string } | null
+  const user = JSON.parse(localStorage.getItem('kuri_user') || 'null') as UserIdentity | null
   const [match, setMatch] = useState<Match | null>(), [rows, setRows] = useState<MarketRow[]>([]), [selected, setSelected] = useState<MarketRow>(), [sheet, setSheet] = useState(false), [picks, setPicks] = useState<Pick[]>([]), [msg, setMsg] = useState('')
   useEffect(() => { if (!user) return; api<Match | null>('/matches/current').then(async m => { setMatch(m); if (m) setRows(await api(`/markets/${m.id}`)) }).catch(e => { setMatch(null); setMsg(e.message) }); api<Pick[]>(`/users/${user.id}/picks`).then(setPicks).catch(() => {}) }, [])
   const markets = useMemo(() => Object.values(rows.reduce<Record<string, { title: string; items: MarketRow[] }>>((a, r) => { (a[r.id] ??= { title: r.title, items: [] }).items.push(r); return a }, {})), [rows])

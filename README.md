@@ -38,6 +38,8 @@ No se guardan en Git. Configurarlos en Cloudflare Pages (producción y preview c
 - `ADMIN_PASSWORD_HASH`: hash bcrypt de la contraseña administrativa.
 - `SESSION_SECRET`: cadena aleatoria larga (mínimo recomendado: 32 bytes).
 
+El acceso está disponible en `/admin/login`. Configura ambos valores con `npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name kuridoit` y `npx wrangler pages secret put SESSION_SECRET --project-name kuridoit`; Wrangler solicitará cada valor sin guardarlo en el repositorio.
+
 Ejemplo local en `.dev.vars` (archivo ignorado):
 
 ```dotenv
