@@ -28,6 +28,7 @@ import {
   type Pick,
   type Prediction,
   type Question,
+  type QuestionType,
 } from "./api";
 
 const fmt = (n: number) => Number(n).toFixed(2);
@@ -320,8 +321,8 @@ function PredictionHistory({ predictions }: { predictions: Prediction[] }) {
                 <small>{date(p.kickoff_at)}</small>
               </div>
               <p>{p.prompt}</p>
-              <strong className={`answer answer-${p.answer.toLowerCase()}`}>
-                {p.answer === "YES" ? "SÍ" : "NO"}
+              <strong className="answer">
+                {p.answer_label ?? (p.answer === "YES" ? "SÍ" : p.answer === "NO" ? "NO" : p.answer)}
               </strong>
               <StatusBadge status={p.status} />
               <em className={p.points_awarded < 0 ? "negative" : ""}>
@@ -444,7 +445,7 @@ function Home() {
       .catch((e) => setMsg(e.message));
   }, [selectedId, user]);
   if (!user) return <Navigate to="/welcome" />;
-  async function answer(question: Question, value: "YES" | "NO") {
+  async function answer(question: Question, value: string) {
     if (!user.token) return;
     try {
       await api("/predictions", {
@@ -535,23 +536,18 @@ function Home() {
                         Valor: <strong>±{fmt(q.points_value)} puntos</strong>
                       </span>
                     </div>
-                    <div className="binary-answers">
-                      <button
-                        className={
-                          q.prediction_answer === "YES" ? "selected yes" : ""
-                        }
-                        onClick={() => answer(q, "YES")}
-                      >
-                        <Check /> Sí
-                      </button>
-                      <button
-                        className={
-                          q.prediction_answer === "NO" ? "selected no" : ""
-                        }
-                        onClick={() => answer(q, "NO")}
-                      >
-                        <X /> No
-                      </button>
+                    <div className="binary-answers configurable-answers">
+                      {q.options.map((option) => (
+                        <button
+                          key={option.value_key}
+                          className={q.prediction_answer === option.value_key ? "selected yes" : ""}
+                          onClick={() => answer(q, option.value_key)}
+                        >
+                          {q.prediction_answer === option.value_key && <Check />}
+                          <span>{option.label}</span>
+                          <small>±{fmt(option.points_value)} pts</small>
+                        </button>
+                      ))}
                     </div>
                   </article>
                 ))}
@@ -650,7 +646,7 @@ function RankingTable({
                       <small>{date(p.kickoff_at)}</small>
                     </span>
                     <p>{p.prompt}</p>
-                    <strong>{p.answer === "YES" ? "SÍ" : "NO"}</strong>
+                    <strong>{p.answer_label ?? (p.answer === "YES" ? "SÍ" : p.answer === "NO" ? "NO" : p.answer)}</strong>
                     <StatusBadge status={p.status} />
                     <em>
                       {p.status === "PENDING"
@@ -711,7 +707,7 @@ function Ranking() {
 
 function AdminQuestions() {
   type AdminQuestion = Question & {
-    correct_answer?: "YES" | "NO" | "VOID";
+    correct_answer?: string;
     settled_at?: string;
   };
   type AdminPrediction = Prediction & { name: string };
@@ -733,6 +729,9 @@ function AdminQuestions() {
     [deleteMatch, setDeleteMatch] = useState(""),
     [deletePrediction, setDeletePrediction] = useState(""),
     [moderateUser, setModerateUser] = useState(""),
+    [newQuestionType, setNewQuestionType] = useState<QuestionType>("CUSTOM"),
+    [settlementChoices, setSettlementChoices] = useState<Record<string, string[]>>({}),
+    [numericResults, setNumericResults] = useState<Record<string, string>>({}),
     [notice, setNotice] = useState(""),
     [error, setError] = useState("");
   async function loadQuestions(matchId: string) {
@@ -808,13 +807,32 @@ function AdminQuestions() {
     const form = e.currentTarget,
       f = new FormData(form);
     try {
+      const type = String(f.get("question_type")) as QuestionType;
+      const points = Number(f.get("points"));
+      const lines = String(f.get(type === "GOAL_SCORER" ? "players" : "answers") || "")
+        .split("\n").map((line) => line.trim()).filter(Boolean);
+      let options: Array<{ value_key: string; label: string; points_value: number }>;
+      if (type === "TOTAL_GOALS" || type === "FIRST_HALF_GOALS") {
+        const thresholds = type === "TOTAL_GOALS" ? [3.5, 4.5, 5.5] : [1.5, 2.5, 3.5];
+        options = thresholds.flatMap((line) => [
+          { value_key: `UNDER_${String(line).replace(".", "_")}`, label: `Under ${line}`, points_value: points },
+          { value_key: `OVER_${String(line).replace(".", "_")}`, label: `Over ${line}`, points_value: points },
+        ]);
+      } else {
+        options = lines.map((line, index) => {
+          const [label, ownPoints] = line.split("|").map((part) => part.trim());
+          return { value_key: `${type}_${index}_${label.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`, label, points_value: Number(ownPoints) || points };
+        });
+      }
       await api("/admin/questions", {
         method: "POST",
         body: JSON.stringify({
           match_id: selected,
           prompt: f.get("prompt"),
-          points_value: Number(f.get("points")),
+          points_value: points,
           status: "OPEN",
+          question_type: type,
+          options,
         }),
       });
       form.reset();
@@ -828,6 +846,11 @@ function AdminQuestions() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     try {
+      const options = q.options.map((option, index) => ({
+        value_key: option.value_key,
+        label: String(f.get(`option_label_${index}`)),
+        points_value: Number(f.get(`option_points_${index}`)),
+      }));
       await api(`/admin/questions/${q.id}`, {
         method: "PUT",
         body: JSON.stringify({
@@ -835,6 +858,8 @@ function AdminQuestions() {
           prompt: f.get("prompt"),
           points_value: Number(f.get("points")),
           status: f.get("status"),
+          question_type: q.question_type,
+          options,
         }),
       });
       await loadQuestions(selected);
@@ -843,17 +868,23 @@ function AdminQuestions() {
       setError((x as Error).message);
     }
   }
-  async function settle(id: string, answer: "YES" | "NO" | "VOID") {
+  async function settle(id: string, correctAnswers: string[] = [], numericResult?: number, voidQuestion = false) {
     try {
       await api("/admin/questions/settle", {
         method: "POST",
-        body: JSON.stringify({ question_id: id, correct_answer: answer }),
+        body: JSON.stringify({ question_id: id, correct_answers: correctAnswers, numeric_result: numericResult, void: voidQuestion }),
       });
       await loadQuestions(selected);
       setNotice("Pregunta resuelta y puntos calculados");
     } catch (x) {
       setError((x as Error).message);
     }
+  }
+  function toggleSettlement(questionId: string, value: string) {
+    setSettlementChoices((current) => {
+      const selected = current[questionId] ?? [];
+      return { ...current, [questionId]: selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value] };
+    });
   }
   async function remove(id: string) {
     try {
@@ -966,12 +997,21 @@ function AdminQuestions() {
             <h2>Nueva pregunta</h2>
             <form className="question-admin-form" onSubmit={create}>
               <label>
+                Tipo de pregunta
+                <select name="question_type" value={newQuestionType} onChange={(e) => setNewQuestionType(e.target.value as QuestionType)}>
+                  <option value="CUSTOM">Respuestas personalizadas</option>
+                  <option value="TOTAL_GOALS">Cantidad de goles</option>
+                  <option value="FIRST_HALF_GOALS">Goles en la primera mitad</option>
+                  <option value="GOAL_SCORER">Jugador que meterá gol</option>
+                </select>
+              </label>
+              <label>
                 Pregunta o sentencia
                 <textarea
                   name="prompt"
                   minLength={5}
                   maxLength={240}
-                  placeholder="Ej. ¿Habrá 4 o más goles?"
+                  placeholder="Ej. ¿Quién marcará gol?"
                   required
                 />
               </label>
@@ -987,6 +1027,19 @@ function AdminQuestions() {
                   required
                 />
               </label>
+              {newQuestionType === "CUSTOM" && (
+                <label className="wide-field">Respuestas (una por línea; opcionalmente Respuesta | puntos)
+                  <textarea name="answers" defaultValue={"Sí\nNo"} required />
+                </label>
+              )}
+              {newQuestionType === "GOAL_SCORER" && (
+                <label className="wide-field">Jugadores que van a jugar (uno por línea; opcionalmente Jugador | puntos)
+                  <textarea name="players" placeholder={"Víctor | 4\nCarlos | 3"} required />
+                </label>
+              )}
+              {(newQuestionType === "TOTAL_GOALS" || newQuestionType === "FIRST_HALF_GOALS") && (
+                <p className="admin-help wide-field">Se crearán automáticamente todas las opciones Under y Over indicadas. Después puedes modificar los puntos de cada respuesta.</p>
+              )}
               <button className="primary-button">AGREGAR PREGUNTA</button>
             </form>
           </section>
@@ -1029,27 +1082,30 @@ function AdminQuestions() {
                       <option value="DISABLED">Desactivada</option>
                     </select>
                   </label>
+                  <div className="question-option-editor">
+                    <b>Respuestas y puntos</b>
+                    {q.options.map((option, index) => (
+                      <div key={option.value_key}>
+                        <input name={`option_label_${index}`} defaultValue={option.label} disabled={q.status === "SETTLED"} />
+                        <input name={`option_points_${index}`} type="number" min="0.5" max="100" step="0.5" defaultValue={option.points_value} disabled={q.status === "SETTLED"} />
+                      </div>
+                    ))}
+                  </div>
                   <div className="question-admin-actions">
                     {q.status !== "SETTLED" && (
                       <button className="secondary-small">Guardar</button>
                     )}
-                    <button
-                      type="button"
-                      className="settle-yes"
-                      onClick={() => settle(q.id, "YES")}
-                    >
-                      Correcta: Sí
-                    </button>
-                    <button
-                      type="button"
-                      className="settle-no"
-                      onClick={() => settle(q.id, "NO")}
-                    >
-                      Correcta: No
-                    </button>
-                    <button type="button" onClick={() => settle(q.id, "VOID")}>
-                      Anular
-                    </button>
+                    {q.status !== "SETTLED" && (q.question_type === "TOTAL_GOALS" || q.question_type === "FIRST_HALF_GOALS") && <>
+                      <input className="result-input" type="number" min="0" step="1" placeholder="Goles reales" value={numericResults[q.id] ?? ""} onChange={(e) => setNumericResults((current) => ({ ...current, [q.id]: e.target.value }))} />
+                      <button type="button" onClick={() => settle(q.id, [], Number(numericResults[q.id]))} disabled={!numericResults[q.id]}>Calcular resultado</button>
+                    </>}
+                    {q.status !== "SETTLED" && q.question_type !== "TOTAL_GOALS" && q.question_type !== "FIRST_HALF_GOALS" && <>
+                      <div className="settlement-options">
+                        {q.options.map((option) => <button type="button" key={option.value_key} className={(settlementChoices[q.id] ?? []).includes(option.value_key) ? "selected-correct" : ""} onClick={() => toggleSettlement(q.id, option.value_key)}>{option.label}</button>)}
+                      </div>
+                      <button type="button" onClick={() => settle(q.id, settlementChoices[q.id] ?? [])}>Resolver seleccionadas</button>
+                    </>}
+                    {q.status !== "SETTLED" && <button type="button" onClick={() => settle(q.id, [], undefined, true)}>Anular</button>}
                     <button
                       type="button"
                       className="danger-small"
@@ -1060,12 +1116,7 @@ function AdminQuestions() {
                   </div>
                   {q.status === "SETTLED" && (
                     <div className="settled-label">
-                      <Check /> Resuelta:{" "}
-                      {q.correct_answer === "YES"
-                        ? "SÍ"
-                        : q.correct_answer === "NO"
-                          ? "NO"
-                          : "ANULADA"}
+                      <Check /> Pregunta resuelta y puntos calculados
                     </div>
                   )}
                 </form>
@@ -1082,7 +1133,7 @@ function AdminQuestions() {
           <p className="admin-help">Elimina una predicción si fue registrada por error. El ranking se recalcula automáticamente.</p>
           <div className="admin-table prediction-admin-table">
             <div className="table-head"><span>Usuario</span><span>Partido / pregunta</span><span>Respuesta</span><span>Puntos</span><span>Acción</span></div>
-            {predictions.map(p=><div key={p.id}><b>{p.name}</b><span>vs {p.opponent}<small>{p.prompt}</small></span><strong>{p.answer==='YES'?'SÍ':'NO'}</strong><span>{p.status==='PENDING'?`±${fmt(p.points_snapshot)}`:`${p.points_awarded>0?'+':''}${fmt(p.points_awarded)}`}</span><div className="row-actions">{deletePrediction===p.id?<><button onClick={()=>setDeletePrediction('')}>Cancelar</button><button className="danger-small" onClick={()=>removePrediction(p.id)}>Confirmar</button></>:<button className="danger-small" onClick={()=>setDeletePrediction(p.id)}><Trash2/> Eliminar</button>}</div></div>)}
+            {predictions.map(p=><div key={p.id}><b>{p.name}</b><span>vs {p.opponent}<small>{p.prompt}</small></span><strong>{p.answer_label ?? (p.answer==='YES'?'SÍ':p.answer==='NO'?'NO':p.answer)}</strong><span>{p.status==='PENDING'?`±${fmt(p.points_snapshot)}`:`${p.points_awarded>0?'+':''}${fmt(p.points_awarded)}`}</span><div className="row-actions">{deletePrediction===p.id?<><button onClick={()=>setDeletePrediction('')}>Cancelar</button><button className="danger-small" onClick={()=>removePrediction(p.id)}>Confirmar</button></>:<button className="danger-small" onClick={()=>setDeletePrediction(p.id)}><Trash2/> Eliminar</button>}</div></div>)}
           </div>
         </section>
         <section className="admin-card" id="moderacion">

@@ -74,6 +74,9 @@
 .binary-answers button:hover { background: var(--odds-hover); }
 .binary-answers button.selected.yes { border-color: var(--success); background: var(--success); color: white; }
 .binary-answers button.selected.no { border-color: var(--danger); background: var(--danger); color: white; }
+.configurable-answers { grid-template-columns: repeat(auto-fit,minmax(125px,1fr)); }
+.configurable-answers button { flex-direction: column; padding: 8px; }
+.configurable-answers button small { font-size: 9px; opacity: .8; }
 .prediction-history { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
 .prediction-history article { padding: 9px 11px; display: grid; grid-template-columns: 170px minmax(0,1fr) 45px 85px 75px; align-items: center; gap: 9px; border-bottom: 1px solid var(--border); }
 .prediction-history article:last-child { border-bottom: 0; }
@@ -129,6 +132,12 @@
 .question-admin-actions .settle-yes { border-color: #91d5bd; color: var(--success); }
 .question-admin-actions .settle-no,.question-admin-actions .danger-small { border-color: #efb2b5; color: var(--danger); }
 .settled-label { grid-column: 1/-1; display: flex; align-items: center; gap: 5px; color: var(--success); font-size: 11px; font-weight: 800; }
+.wide-field { grid-column: 1/-1; }
+.question-option-editor { grid-column: 1/-1; display: grid; gap: 6px; padding: 10px; background: #f7f9fb; border: 1px solid var(--border); border-radius: 6px; }
+.question-option-editor>div { display: grid; grid-template-columns: minmax(0,1fr) 90px; gap: 6px; }
+.settlement-options { display: flex; flex-wrap: wrap; gap: 5px; }
+.settlement-options .selected-correct { background: var(--success); color: white; border-color: var(--success); }
+.result-input { width: 120px; }
 .nested-admin-card { margin: 12px 0 0; background: #f8fafc; }
 .prediction-admin-table>div { grid-template-columns: 130px minmax(230px,1fr) 70px 70px 150px; }
 .prediction-admin-table>div>span:nth-child(2) { display: flex; flex-direction: column; gap: 2px; }

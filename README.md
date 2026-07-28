@@ -1,6 +1,6 @@
 # KuriDoIt
 
-PWA interna de predicciones para partidos de Kuriyama. Cada partido contiene preguntas opcionales con respuesta Sí/No y un valor fijo: acertar suma el valor y fallar resta exactamente el mismo valor. Incluye panel administrativo, ranking desplegable, API sobre Cloudflare Pages Functions y persistencia D1.
+PWA interna de predicciones para partidos de Kuriyama. Cada partido contiene preguntas opcionales con respuestas y puntos configurables: acertar suma el valor de la opción y fallar resta ese mismo valor. Incluye preguntas especiales de goles totales, goles de primera mitad y jugador goleador, panel administrativo, ranking desplegable, API sobre Cloudflare Pages Functions y persistencia D1.
 
 ## Arquitectura
 
@@ -51,7 +51,7 @@ Se puede generar el hash con `npx wrangler secret`/una herramienta bcrypt confia
 
 ## D1 y migraciones
 
-Las migraciones crean el esquema legado y las tablas actuales `questions` y `predictions`, con claves foráneas, checks, índices y restricciones únicas. Para producción:
+Las migraciones crean el esquema legado y las tablas actuales `questions`, `question_options` y `predictions`, con claves foráneas, checks, índices y restricciones únicas. Para producción:
 
 ```bash
 npx wrangler d1 migrations apply kuridoit-db --remote
