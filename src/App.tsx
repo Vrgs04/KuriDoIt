@@ -462,6 +462,11 @@ function Home() {
       .then(setQuestions)
       .catch((e) => setMsg(e.message));
   }, [selectedId, user]);
+  useEffect(() => {
+    if (msg !== "PREDICCIÓN GUARDADA") return;
+    const timeout = window.setTimeout(() => setMsg(""), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [msg]);
   if (!user) return <Navigate to="/welcome" />;
   async function answer(question: Question, value: string) {
     if (!user.token) return;
