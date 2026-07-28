@@ -466,19 +466,18 @@ function Home() {
   async function answer(question: Question, value: string) {
     if (!user.token) return;
     try {
+      const removing = question.prediction_answer === value;
       await api("/predictions", {
-        method: "POST",
+        method: removing ? "DELETE" : "POST",
         headers: { Authorization: `Bearer ${user.token}` },
-        body: JSON.stringify({
-          user_id: user.id,
-          question_id: question.id,
-          answer: value,
-        }),
+        body: JSON.stringify(removing
+          ? { user_id: user.id, question_id: question.id }
+          : { user_id: user.id, question_id: question.id, answer: value }),
       });
       setQuestions((current) =>
         current.map((q) =>
           q.id === question.id
-            ? { ...q, prediction_answer: value, prediction_status: "PENDING" }
+            ? { ...q, prediction_answer: removing ? undefined : value, prediction_status: removing ? undefined : "PENDING" }
             : q,
         ),
       );
@@ -487,7 +486,7 @@ function Home() {
           headers: { Authorization: `Bearer ${user.token}` },
         }),
       );
-      setMsg("PREDICCIÓN GUARDADA");
+      setMsg(removing ? "PREDICCIÓN ELIMINADA" : "PREDICCIÓN GUARDADA");
     } catch (e) {
       setMsg((e as Error).message);
     }
@@ -524,9 +523,9 @@ function Home() {
       </section>
       {msg && (
         <div
-          className={`toast ${msg === "PREDICCIÓN GUARDADA" ? "success" : ""}`}
+          className={`toast ${["PREDICCIÓN GUARDADA", "PREDICCIÓN ELIMINADA"].includes(msg) ? "success" : ""}`}
         >
-          {msg === "PREDICCIÓN GUARDADA" && <Check />}
+          {["PREDICCIÓN GUARDADA", "PREDICCIÓN ELIMINADA"].includes(msg) && <Check />}
           {msg}
         </div>
       )}
