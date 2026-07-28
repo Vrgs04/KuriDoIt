@@ -1,5 +1,6 @@
 import { compare } from 'bcryptjs'
 import { z } from 'zod'
+import { normalizeApiPath } from '../../src/lib/apiPath'
 
 interface Env { DB: D1Database; ADMIN_PASSWORD_HASH: string; SESSION_SECRET: string }
 type Ctx = EventContext<Env, string, unknown>
@@ -30,7 +31,7 @@ async function requireAdmin(c: Ctx) { return await isAdmin(c.request, c.env) ? n
 const params = (url: URL) => Object.fromEntries(url.searchParams)
 
 async function route(c: Ctx) {
-  const url = new URL(c.request.url), method = c.request.method, path = '/' + (c.params.path ?? '')
+  const url = new URL(c.request.url), method = c.request.method, path = normalizeApiPath(c.params.path)
   const db = c.env.DB
   if (method === 'POST' && path === '/users') {
     const { name } = await body(c.request, z.object({ name: text }))

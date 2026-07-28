@@ -68,7 +68,7 @@ function Welcome() {
 function Home() {
   const user = JSON.parse(localStorage.getItem('kuri_user') || 'null') as { id: string; name: string } | null
   const [match, setMatch] = useState<Match | null>(), [rows, setRows] = useState<MarketRow[]>([]), [selected, setSelected] = useState<MarketRow>(), [sheet, setSheet] = useState(false), [picks, setPicks] = useState<Pick[]>([]), [msg, setMsg] = useState('')
-  useEffect(() => { if (!user) return; api<Match | null>('/matches/current').then(async m => { setMatch(m); if (m) setRows(await api(`/markets/${m.id}`)) }).catch(e => setMsg(e.message)); api<Pick[]>(`/users/${user.id}/picks`).then(setPicks).catch(() => {}) }, [])
+  useEffect(() => { if (!user) return; api<Match | null>('/matches/current').then(async m => { setMatch(m); if (m) setRows(await api(`/markets/${m.id}`)) }).catch(e => { setMatch(null); setMsg(e.message) }); api<Pick[]>(`/users/${user.id}/picks`).then(setPicks).catch(() => {}) }, [])
   const markets = useMemo(() => Object.values(rows.reduce<Record<string, { title: string; items: MarketRow[] }>>((a, r) => { (a[r.id] ??= { title: r.title, items: [] }).items.push(r); return a }, {})), [rows])
   if (!user) return <Navigate to="/welcome" />
   async function save() { if (!match || !selected) return; try { await api('/picks', { method: 'POST', body: JSON.stringify({ user_id: user!.id, match_id: match.id, market_option_id: selected.option_id }) }); setMsg('PICK REGISTRADO'); setSheet(false); setSelected(undefined); setPicks(await api(`/users/${user!.id}/picks`)) } catch (e) { setMsg((e as Error).message) } }
