@@ -1,4 +1,4 @@
-# Kuriyama Picks
+# KuriDoIt
 
 PWA interna para que empleados hagan un pick por partido, acumulen puntos según el momio decimal congelado y compitan en un ranking. Incluye panel administrativo, API real sobre Cloudflare Pages Functions y persistencia Cloudflare D1.
 
@@ -23,9 +23,9 @@ Para probar frontend y Functions juntos:
 
 ```bash
 npm run build
-npx wrangler d1 create kuriyama-picks
+npx wrangler d1 create kuridoit-db
 # Sustituir REPLACE_WITH_D1_DATABASE_ID en wrangler.jsonc
-npx wrangler d1 migrations apply kuriyama-picks --local
+npx wrangler d1 migrations apply kuridoit-db --local
 npm run pages:dev
 ```
 
@@ -52,7 +52,7 @@ Se puede generar el hash con `npx wrangler secret`/una herramienta bcrypt confia
 La migración `0001_initial.sql` crea `users`, `matches`, `markets`, `market_options` y `picks`, con claves foráneas, checks, índices y restricciones únicas. Para producción:
 
 ```bash
-npx wrangler d1 migrations apply kuriyama-picks --remote
+npx wrangler d1 migrations apply kuridoit-db --remote
 ```
 
 No ejecutar hasta crear la base, colocar su ID real y revisar el destino. Toda evolución del esquema debe agregarse en una migración nueva.

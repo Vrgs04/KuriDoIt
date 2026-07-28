@@ -1,5 +1,5 @@
 {
-  "name": "kuriyama-picks",
+  "name": "kuridoit",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
     "test": "vitest run",
-    "pages:dev": "wrangler pages dev dist --d1 DB=kuriyama-picks-local"
+    "pages:dev": "wrangler pages dev dist --d1 DB=kuridoit-local"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

@@ -1,0 +1,5 @@
+/* Small high-specificity corrections kept separate from the generated design tokens. */
+.welcome,
+.admin-login {
+  background: var(--navy);
+}
