@@ -31,7 +31,7 @@ async function requireAdmin(c: Ctx) { return await isAdmin(c.request, c.env) ? n
 const params = (url: URL) => Object.fromEntries(url.searchParams)
 
 async function route(c: Ctx) {
-  const url = new URL(c.request.url), method = c.request.method, path = normalizeApiPath(c.params.path)
+  const url = new URL(c.request.url), method = c.request.method, path = normalizeApiPath(url.pathname)
   const db = c.env.DB
   if (method === 'POST' && path === '/users') {
     const { name } = await body(c.request, z.object({ name: text }))

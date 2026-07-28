@@ -1,4 +1,3 @@
-export function normalizeApiPath(path: string | string[] | undefined): string {
-  if (Array.isArray(path)) return `/${path.join('/')}`
-  return `/${path ?? ''}`
+export function normalizeApiPath(pathname: string): string {
+  return pathname.replace(/^\/api(?=\/|$)/, '') || '/'
 }
