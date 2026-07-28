@@ -28,3 +28,31 @@
   .account-trigger svg:last-child { display: none; }
   .account-popover { position: fixed; top: 52px; right: 8px; left: 8px; width: auto; }
 }
+
+.admin-notice { margin: 0 0 14px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; border: 1px solid #a6dfca; border-radius: 5px; background: #e6f7f1; color: #087d54; font-weight: 700; }
+.admin-notice button { margin-left: auto; display: grid; place-items: center; border: 0; background: transparent; color: inherit; }
+.match-admin-table > div { grid-template-columns: 1.1fr 1fr 90px minmax(220px, auto); }
+.row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
+.row-actions button { min-height: 29px; padding: 5px 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); font-size: 10px; font-weight: 700; }
+.row-actions button:hover { background: var(--surface-2); }
+.row-actions .danger-small { border-color: #f1b6b9; color: var(--danger); }
+.row-actions svg { width: 12px; height: 12px; }
+.admin-select { max-width: 620px; display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 12px; }
+.admin-select select { padding: 10px; border: 1px solid var(--border); border-radius: 5px; background: white; }
+.market-admin-grid { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.compact-form { align-content: start; padding: 12px; border: 1px solid var(--border); border-radius: 5px; background: #f8fafc; }
+.compact-form h3 { grid-column: 1 / -1; margin: 0 0 4px; font-size: 13px; }
+.configured-markets { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.configured-markets article { padding: 10px; border: 1px solid var(--border); border-radius: 5px; }
+.configured-markets article > b,.configured-markets article > small { display: block; }
+.configured-markets article > small { margin: 2px 0 8px; color: var(--muted); font-size: 9px; }
+.configured-markets article div { display: flex; flex-direction: column; gap: 4px; }
+.configured-markets article span { padding: 6px 8px; display: flex; justify-content: space-between; background: var(--surface-2); border-radius: 4px; font-size: 12px; }
+.configured-markets article strong { color: var(--primary); }
+.admin-help { color: var(--muted); font-size: 12px; }
+.moderation-table > div { grid-template-columns: minmax(150px, 1fr) 90px 70px 180px; }
+
+@media (max-width: 760px) {
+  .market-admin-grid,.configured-markets { grid-template-columns: 1fr; }
+  .match-admin-table > div,.moderation-table > div { min-width: 700px; }
+}
