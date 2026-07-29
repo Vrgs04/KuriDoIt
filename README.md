@@ -69,7 +69,7 @@ No ejecutar hasta crear la base, colocar su ID real y revisar el destino. Toda e
 
 Pública/usuario: `POST /api/users`, `GET /api/matches/open`, `GET /api/questions/:matchId`, `POST /api/predictions`, `GET /api/users/:id/predictions` y `GET /api/leaderboard`.
 
-Administración: `/admin` y `/admin/questions` abren la misma consola de partidos, preguntas, predicciones y moderación. El CRUD de `/api/admin/questions` administra preguntas; `POST /api/admin/questions/settle` asigna puntos, y `DELETE /api/admin/predictions/:id` elimina una predicción registrada por error. Todas las rutas administrativas verifican la cookie firmada en servidor.
+Administración: `/admin` redirige a `/admin/matches`. El panel se divide en `/admin/matches`, `/admin/questions`, `/admin/predictions` y `/admin/moderation`. El CRUD de `/api/admin/questions` administra preguntas; `POST /api/admin/questions/settle` asigna puntos, y `DELETE /api/admin/predictions/:id` elimina una predicción registrada por error. Todas las rutas administrativas verifican la cookie firmada en servidor.
 
 ## Despliegue en Cloudflare Pages
 

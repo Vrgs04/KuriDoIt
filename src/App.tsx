@@ -770,7 +770,7 @@ function Ranking() {
   );
 }
 
-function AdminQuestions() {
+function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" | "predictions" | "moderation" }) {
   type AdminQuestion = Question & {
     correct_answer?: string;
     settled_at?: string;
@@ -1028,10 +1028,10 @@ function AdminQuestions() {
         </div>
         <small>ADMIN</small>
         <nav>
-          <a href="#partidos">Partidos</a>
-          <a href="#preguntas">Preguntas</a>
-          <a href="#predicciones">Predicciones</a>
-          <a href="#moderacion">Moderación</a>
+          <NavLink to="/admin/matches">Partidos</NavLink>
+          <NavLink to="/admin/questions">Preguntas</NavLink>
+          <NavLink to="/admin/predictions">Predicciones</NavLink>
+          <NavLink to="/admin/moderation">Moderación</NavLink>
         </nav>
         <button onClick={logout}>
           <LogOut /> Cerrar sesión
@@ -1047,8 +1047,14 @@ function AdminQuestions() {
             <LogOut />
           </button>
         </div>
-        <span className="section-kicker">PREDICCIONES</span>
-        <h1>Panel de predicciones</h1>
+        <nav className="admin-mobile-nav">
+          <NavLink to="/admin/matches">Partidos</NavLink>
+          <NavLink to="/admin/questions">Preguntas</NavLink>
+          <NavLink to="/admin/predictions">Predicciones</NavLink>
+          <NavLink to="/admin/moderation">Moderación</NavLink>
+        </nav>
+        <span className="section-kicker">ADMINISTRACIÓN</span>
+        <h1>{view === "matches" ? "Partidos" : view === "questions" ? "Preguntas" : view === "predictions" ? "Predicciones realizadas" : "Moderación"}</h1>
         {error && <p className="error">{error}</p>}
         {notice && (
           <div className="admin-notice">
@@ -1059,6 +1065,7 @@ function AdminQuestions() {
             </button>
           </div>
         )}
+        {view === "matches" && <>
         <section className="admin-card" id="partidos">
           <h2>Nuevo partido</h2>
           <form className="admin-form" onSubmit={createMatch}>
@@ -1076,6 +1083,8 @@ function AdminQuestions() {
             {matches.map(m=><form key={m.id} onSubmit={(e)=>saveMatchResult(e,m.id)}><b>Kuriyama vs {m.opponent}</b><span>{date(m.kickoff_at)}</span><div className="score-inputs"><input aria-label="Goles Kuriyama" name="kuriyama_score" type="number" min="0" max="99" defaultValue={m.kuriyama_score ?? ""}/><b>–</b><input aria-label={`Goles ${m.opponent}`} name="opponent_score" type="number" min="0" max="99" defaultValue={m.opponent_score ?? ""}/></div><select name="status" defaultValue={m.status}><option value="OPEN">Próximo / abierto</option><option value="LOCKED">Cerrado</option><option value="FINISHED">Finalizado</option><option value="CANCELLED">Cancelado</option><option value="DRAFT">Borrador</option></select><div className="row-actions"><button>Guardar resultado</button><button type="button" onClick={()=>loadQuestions(m.id)}>Preguntas</button>{deleteMatch===m.id?<><button type="button" onClick={()=>setDeleteMatch('')}>Cancelar</button><button type="button" className="danger-small" onClick={()=>removeMatch(m.id)}>Confirmar</button></>:<button type="button" className="danger-small" onClick={()=>setDeleteMatch(m.id)}><Trash2/> Eliminar</button>}</div></form>)}
           </div>
         </section>
+        </>}
+        {view === "questions" && <>
         <section className="admin-card" id="preguntas">
           <label className="admin-select">
             Configurar preguntas del partido
@@ -1240,22 +1249,23 @@ function AdminQuestions() {
             </div>
           )}
         </section>
-        <section className="admin-card" id="predicciones">
+        </>}
+        {view === "predictions" && <section className="admin-card" id="predicciones">
           <h2>Predicciones realizadas</h2>
           <p className="admin-help">Elimina una predicción si fue registrada por error. El ranking se recalcula automáticamente.</p>
           <div className="admin-table prediction-admin-table">
             <div className="table-head"><span>Usuario</span><span>Partido / pregunta</span><span>Respuesta</span><span>Puntos</span><span>Acción</span></div>
             {predictions.map(p=><div key={p.id}><b>{p.name}</b><span>vs {p.opponent}<small>{p.prompt}</small></span><strong>{p.answer_label ?? (p.answer==='YES'?'SÍ':p.answer==='NO'?'NO':p.answer)}</strong><span>{p.status==='PENDING'?`±${fmt(p.points_snapshot)}`:`${p.points_awarded>0?'+':''}${fmt(p.points_awarded)}`}</span><div className="row-actions">{deletePrediction===p.id?<><button onClick={()=>setDeletePrediction('')}>Cancelar</button><button className="danger-small" onClick={()=>removePrediction(p.id)}>Confirmar</button></>:<button className="danger-small" onClick={()=>setDeletePrediction(p.id)}><Trash2/> Eliminar</button>}</div></div>)}
           </div>
-        </section>
-        <section className="admin-card" id="moderacion">
+        </section>}
+        {view === "moderation" && <section className="admin-card" id="moderacion">
           <h2>Moderación del ranking</h2>
           <p className="admin-help">Retira usuarios con nombres ofensivos; su historial queda anonimizado.</p>
           <div className="admin-table moderation-table">
             <div className="table-head"><span>Usuario</span><span>Puntos</span><span>Predicciones</span><span>Acción</span></div>
             {ranking.map(u=><div key={u.id}><b>{u.name}</b><span>{fmt(u.points)}</span><span>{u.total}</span><div className="row-actions">{moderateUser===u.id?<><button onClick={()=>setModerateUser('')}>Cancelar</button><button className="danger-small" onClick={()=>removeUser(u.id)}>Confirmar</button></>:<button className="danger-small" onClick={()=>setModerateUser(u.id)}><Trash2/> Retirar</button>}</div></div>)}
           </div>
-        </section>
+        </section>}
       </main>
     </div>
   );
@@ -1272,7 +1282,7 @@ function AdminLogin() {
         method: "POST",
         body: JSON.stringify({ password }),
       });
-      nav("/admin/questions");
+      nav("/admin/matches");
     } catch (x) {
       setError((x as Error).message);
     }
@@ -1791,8 +1801,11 @@ export default function App() {
       <Route path="/matches/history" element={<Home view="history" />} />
       <Route path="/ranking" element={<Ranking />} />
       <Route path="/admin/login" element={<AdminLogin />} />
-      <Route path="/admin/questions" element={<AdminQuestions />} />
-      <Route path="/admin" element={<AdminQuestions />} />
+      <Route path="/admin/matches" element={<AdminQuestions view="matches" />} />
+      <Route path="/admin/questions" element={<AdminQuestions view="questions" />} />
+      <Route path="/admin/predictions" element={<AdminQuestions view="predictions" />} />
+      <Route path="/admin/moderation" element={<AdminQuestions view="moderation" />} />
+      <Route path="/admin" element={<Navigate to="/admin/matches" replace />} />
       <Route path="*" element={<Home view="matches" />} />
     </Routes>
   );
