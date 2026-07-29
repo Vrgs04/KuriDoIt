@@ -322,16 +322,24 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function PredictionHistory({ predictions }: { predictions: Prediction[] }) {
+  const [open, setOpen] = useState(false);
   return (
     <section id="my-picks" className="content-section">
-      <div className="title-row">
+      <button
+        type="button"
+        className="title-row history-toggle"
+        aria-expanded={open}
+        aria-controls="prediction-history-content"
+        onClick={() => setOpen((current) => !current)}
+      >
         <div>
           <span className="section-kicker">HISTORIAL</span>
           <h2>Mis predicciones</h2>
         </div>
-      </div>
-      {predictions.length ? (
-        <div className="prediction-history">
+        <span>{predictions.length} <ChevronDown className={open ? "open" : ""} /></span>
+      </button>
+      {open && (predictions.length ? (
+        <div id="prediction-history-content" className="prediction-history">
           {predictions.map((p) => (
             <article key={p.id}>
               <div>
@@ -353,8 +361,8 @@ function PredictionHistory({ predictions }: { predictions: Prediction[] }) {
           ))}
         </div>
       ) : (
-        <div className="empty-state">Tus predicciones aparecerán aquí.</div>
-      )}
+        <div id="prediction-history-content" className="empty-state">Tus predicciones aparecerán aquí.</div>
+      ))}
     </section>
   );
 }

@@ -1,7 +1,7 @@
 /* Small high-specificity corrections kept separate from the generated design tokens. */
-html { overflow-x: hidden; overscroll-behavior: none; }
-body { min-height: 100dvh; overflow-x: hidden; overscroll-behavior: none; }
-#root { min-height: 100dvh; overflow-x: clip; }
+html { overflow-x: hidden; overscroll-behavior-x: none; overscroll-behavior-y: auto; touch-action: pan-y; }
+body { min-height: 100dvh; overflow-x: hidden; overscroll-behavior-x: none; overscroll-behavior-y: auto; touch-action: pan-y; }
+#root { min-height: 100dvh; overflow-x: clip; touch-action: pan-y; }
 button,a { touch-action: manipulation; }
 
 .welcome,
@@ -89,6 +89,10 @@ button,a { touch-action: manipulation; }
 .configurable-answers button { flex-direction: column; padding: 8px; }
 .configurable-answers button small { font-size: 9px; opacity: .8; }
 .prediction-history { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+.history-toggle { width: 100%; padding: 0; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.history-toggle>span { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 800; }
+.history-toggle svg { width: 16px; transition: transform .18s ease; }
+.history-toggle svg.open { transform: rotate(180deg); }
 .prediction-history article { padding: 9px 11px; display: grid; grid-template-columns: 170px minmax(0,1fr) 45px 85px 75px; align-items: center; gap: 9px; border-bottom: 1px solid var(--border); }
 .prediction-history article:last-child { border-bottom: 0; }
 .prediction-history article>div { display: flex; flex-direction: column; }
