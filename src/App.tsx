@@ -295,7 +295,7 @@ function MatchCard({
       <div className="teams">
         <div>
           <strong>
-            {match.kuriyama_side === "HOME" ? "KURIYAMA" : match.opponent}
+            {match.kuriyama_side === "HOME" ? "KURIYAMA" : <OpponentName match={match} />}
           </strong>
           <small>
             {match.kuriyama_side === "HOME" ? "LOCAL" : "VISITANTE"}
@@ -304,7 +304,7 @@ function MatchCard({
         <i>VS</i>
         <div>
           <strong>
-            {match.kuriyama_side === "HOME" ? match.opponent : "KURIYAMA"}
+            {match.kuriyama_side === "HOME" ? <OpponentName match={match} /> : "KURIYAMA"}
           </strong>
           <small>
             {match.kuriyama_side === "HOME" ? "VISITANTE" : "LOCAL"}
@@ -316,6 +316,13 @@ function MatchCard({
       </footer>
     </article>
   );
+}
+
+function OpponentName({ match }: { match: Match }) {
+  return <span className="opponent-name">
+    {match.previous_opponent && match.previous_opponent !== match.opponent && <del>{match.previous_opponent}</del>}
+    <span>{match.opponent}</span>
+  </span>;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -383,7 +390,7 @@ function MatchHistory({ matches }: { matches: Match[] }) {
             <span><b>{date(match.kickoff_at)}</b><small>{match.status === "FINISHED" ? "Finalizado" : "Próximo partido"}</small></span>
             <strong>KURIYAMA</strong>
             <em className={hasScore ? "final-score" : "pending-score"}>{hasScore ? `${match.kuriyama_score} – ${match.opponent_score}` : "Pendiente"}</em>
-            <strong>{match.opponent.toUpperCase()}</strong>
+            <strong><OpponentName match={match} /></strong>
           </article>;
         })}
         {!ordered.length && <div className="empty-state">Todavía no hay partidos registrados.</div>}
@@ -572,7 +579,7 @@ function Home({ view = "matches" }: { view?: "matches" | "predictions" | "histor
                 onClick={() => setSelectedId(m.id)}
               >
                 <span>Kuriyama vs</span>
-                <b>{m.opponent}</b>
+                <b><OpponentName match={m} /></b>
                 <small>{date(m.kickoff_at)}</small>
               </button>
             ))}
@@ -924,7 +931,7 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
     try {
       await api(`/admin/matches/${id}/result`, {
         method: "PUT",
-        body: JSON.stringify({ kuriyama_score: score("kuriyama_score"), opponent_score: score("opponent_score"), status: f.get("status") }),
+        body: JSON.stringify({ opponent: f.get("opponent"), kuriyama_score: score("kuriyama_score"), opponent_score: score("opponent_score"), status: f.get("status") }),
       });
       await refresh();
       setNotice("Resultado del partido actualizado");
@@ -1127,7 +1134,7 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
           <h2>Partidos</h2>
           <div className="admin-table match-admin-table">
             <div className="table-head"><span>Partido</span><span>Fecha</span><span>Marcador</span><span>Estado</span><span>Acciones</span></div>
-            {matches.map(m=><form key={m.id} onSubmit={(e)=>saveMatchResult(e,m.id)}><b>Kuriyama vs {m.opponent}</b><span>{date(m.kickoff_at)}</span><div className="score-inputs"><input aria-label="Goles Kuriyama" name="kuriyama_score" type="number" min="0" max="99" defaultValue={m.kuriyama_score ?? ""}/><b>–</b><input aria-label={`Goles ${m.opponent}`} name="opponent_score" type="number" min="0" max="99" defaultValue={m.opponent_score ?? ""}/></div><select name="status" defaultValue={m.status}><option value="OPEN">Próximo / abierto</option><option value="LOCKED">Cerrado</option><option value="FINISHED">Finalizado</option><option value="CANCELLED">Cancelado</option><option value="DRAFT">Borrador</option></select><div className="row-actions"><button>Guardar resultado</button><button type="button" onClick={()=>openMatchQuestions(m.id)}>Preguntas</button>{deleteMatch===m.id?<><button type="button" onClick={()=>setDeleteMatch('')}>Cancelar</button><button type="button" className="danger-small" onClick={()=>removeMatch(m.id)}>Confirmar</button></>:<button type="button" className="danger-small" onClick={()=>setDeleteMatch(m.id)}><Trash2/> Eliminar</button>}</div></form>)}
+            {matches.map(m=><form key={m.id} onSubmit={(e)=>saveMatchResult(e,m.id)}><label className="opponent-editor">Rival<input name="opponent" required minLength={2} defaultValue={m.opponent}/>{m.previous_opponent && m.previous_opponent !== m.opponent && <small>Antes: <del>{m.previous_opponent}</del></small>}</label><span>{date(m.kickoff_at)}</span><div className="score-inputs"><input aria-label="Goles Kuriyama" name="kuriyama_score" type="number" min="0" max="99" defaultValue={m.kuriyama_score ?? ""}/><b>–</b><input aria-label={`Goles ${m.opponent}`} name="opponent_score" type="number" min="0" max="99" defaultValue={m.opponent_score ?? ""}/></div><select name="status" defaultValue={m.status}><option value="OPEN">Próximo / abierto</option><option value="LOCKED">Cerrado</option><option value="FINISHED">Finalizado</option><option value="CANCELLED">Cancelado</option><option value="DRAFT">Borrador</option></select><div className="row-actions"><button>Guardar cambios</button><button type="button" onClick={()=>openMatchQuestions(m.id)}>Preguntas</button>{deleteMatch===m.id?<><button type="button" onClick={()=>setDeleteMatch('')}>Cancelar</button><button type="button" className="danger-small" onClick={()=>removeMatch(m.id)}>Confirmar</button></>:<button type="button" className="danger-small" onClick={()=>setDeleteMatch(m.id)}><Trash2/> Eliminar</button>}</div></form>)}
           </div>
         </section>
         </>}
