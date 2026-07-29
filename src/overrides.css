@@ -88,13 +88,13 @@ button,a { touch-action: manipulation; }
 .question-toggle b { font-size: 13px; }
 .question-toggle>svg { width: 17px; flex: none; color: var(--primary); transition: transform .18s ease; }
 .question-toggle>svg.open { transform: rotate(180deg); }
-.question-picks { padding: 10px 12px; display: grid; grid-template-columns: minmax(0,1fr) 190px; align-items: center; gap: 10px; border-top: 1px solid var(--border); }
+.question-picks { padding: 10px 12px; display: grid; grid-template-columns: minmax(0,1fr); align-items: center; gap: 10px; border-top: 1px solid var(--border); }
 .question-number { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; background: var(--navy); color: white; font-size: 11px; font-weight: 800; }
 .question-copy { display: flex; flex-direction: column; gap: 4px; }
 .question-copy b { font-size: 13px; }
 .question-copy span { color: var(--muted); font-size: 10px; }
 .question-copy strong { color: var(--primary); }
-.binary-answers { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.binary-answers { width: min(100%,720px); justify-self: center; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .binary-answers button { min-height: 38px; display: flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--border); border-radius: 5px; background: var(--odds); color: var(--text); font-weight: 800; }
 .binary-answers button:hover { background: var(--odds-hover); }
 .binary-answers button.selected.yes { border-color: var(--success); background: var(--success); color: white; }
