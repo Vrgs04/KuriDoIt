@@ -2,6 +2,8 @@
 
 PWA interna de predicciones para partidos de Kuriyama. Cada partido contiene preguntas opcionales con respuestas y puntos configurables: acertar suma el valor de la opción y fallar resta ese mismo valor. La pregunta de jugador goleador admite varias selecciones y acumula su riesgo/puntuación. El panel administrativo permite copiar preguntas anteriores junto con todas sus respuestas y puntos. Incluye preguntas especiales de goles totales, goles de primera mitad y jugador goleador, ranking desplegable, API sobre Cloudflare Pages Functions y persistencia D1.
 
+Los partidos admiten marcador de Kuriyama y del rival. El administrador puede registrar o corregir el resultado y cambiar el estado; la pantalla principal muestra partidos finalizados y próximos en el historial.
+
 ## Arquitectura
 
 - `src/`: React + TypeScript + Vite + Tailwind, mobile-first.

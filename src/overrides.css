@@ -42,7 +42,12 @@ button,a { touch-action: manipulation; }
 
 .admin-notice { margin: 0 0 14px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; border: 1px solid #a6dfca; border-radius: 5px; background: #e6f7f1; color: #087d54; font-weight: 700; }
 .admin-notice button { margin-left: auto; display: grid; place-items: center; border: 0; background: transparent; color: inherit; }
-.match-admin-table > div { grid-template-columns: 1.1fr 1fr 90px minmax(220px, auto); }
+.match-admin-table > div,.match-admin-table > form { grid-template-columns: 1.1fr 1fr 120px 145px minmax(260px, auto); }
+.match-admin-table > form { min-height: 48px; padding: 7px 10px; display: grid; gap: 10px; align-items: center; border-bottom: 1px solid var(--border); font-size: 12px; }
+.match-admin-table > form:last-child { border-bottom: 0; }
+.match-admin-table > form>select,.score-inputs input { min-height: 32px; padding: 5px; border: 1px solid var(--border); border-radius: 4px; background: white; }
+.score-inputs { display: grid; grid-template-columns: 45px auto 45px; align-items: center; gap: 4px; text-align: center; }
+.score-inputs input { width: 45px; text-align: center; }
 .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
 .row-actions button { min-height: 29px; padding: 5px 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); font-size: 10px; font-weight: 700; }
 .row-actions button:hover { background: var(--surface-2); }
@@ -65,7 +70,7 @@ button,a { touch-action: manipulation; }
 
 @media (max-width: 760px) {
   .market-admin-grid,.configured-markets { grid-template-columns: 1fr; }
-  .match-admin-table > div,.moderation-table > div { min-width: 700px; }
+  .match-admin-table > div,.match-admin-table > form,.moderation-table > div { min-width: 850px; }
 }
 
 .match-selector { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
@@ -100,6 +105,15 @@ button,a { touch-action: manipulation; }
 .prediction-history p { margin: 0; font-size: 12px; }
 .prediction-history em { font-style: normal; font-weight: 800; color: var(--success); text-align: right; }
 .prediction-history em.negative { color: var(--danger); }
+.match-history { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); overflow: hidden; }
+.match-history article { min-height: 54px; padding: 9px 12px; display: grid; grid-template-columns: minmax(150px,1fr) minmax(90px,1fr) 100px minmax(90px,1fr); align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+.match-history article:last-child { border-bottom: 0; }
+.match-history article>span { display: flex; flex-direction: column; color: var(--muted); font-size: 10px; }
+.match-history article>span>b { color: var(--text); }
+.match-history article>strong:last-child { text-align: right; }
+.match-history em { text-align: center; font-style: normal; font-weight: 900; }
+.final-score { color: var(--primary); font-size: 20px; }
+.pending-score { color: var(--muted); font-size: 10px; }
 .answer { text-align: center; color: var(--primary); }
 .ranking-table .ranking-entry { display: block; min-height: 0; padding: 0; border-bottom: 1px solid var(--border); }
 .ranking-table .ranking-entry:last-child { border-bottom: 0; }
@@ -132,6 +146,9 @@ button,a { touch-action: manipulation; }
   .prediction-history article>p { grid-column: 1/-1; grid-row: 2; }
   .prediction-history .status-badge { grid-column: 2; grid-row: 1; }
   .prediction-history article>em { grid-column: 3; grid-row: 1; }
+  .match-history article { grid-template-columns: minmax(0,1fr) 74px minmax(0,1fr); padding: 9px 8px; }
+  .match-history article>span { grid-column: 1/-1; }
+  .match-history article>strong { font-size: 11px; }
   .ranking-row { grid-template-columns: 40px minmax(0,1fr) 70px; padding: 8px; }
   .ranking-row>span:nth-child(3),.ranking-row>span:nth-child(4),.ranking-row>span:nth-child(5) { display:none; }
   .ranking-predictions { padding: 6px; }

@@ -367,6 +367,29 @@ function PredictionHistory({ predictions }: { predictions: Prediction[] }) {
   );
 }
 
+function MatchHistory({ matches }: { matches: Match[] }) {
+  const ordered = [...matches].sort((a, b) => new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime());
+  return (
+    <section className="content-section">
+      <div className="title-row">
+        <div><span className="section-kicker">PARTIDOS</span><h2>Historial de partidos</h2></div>
+      </div>
+      <div className="match-history">
+        {ordered.map((match) => {
+          const hasScore = match.kuriyama_score !== null && match.opponent_score !== null;
+          return <article key={match.id}>
+            <span><b>{date(match.kickoff_at)}</b><small>{match.status === "FINISHED" ? "Finalizado" : "Próximo partido"}</small></span>
+            <strong>KURIYAMA</strong>
+            <em className={hasScore ? "final-score" : "pending-score"}>{hasScore ? `${match.kuriyama_score} – ${match.opponent_score}` : "Pendiente"}</em>
+            <strong>{match.opponent.toUpperCase()}</strong>
+          </article>;
+        })}
+        {!ordered.length && <div className="empty-state">Todavía no hay partidos registrados.</div>}
+      </div>
+    </section>
+  );
+}
+
 function Welcome() {
   const nav = useNavigate(),
     [name, setName] = useState(""),
@@ -431,6 +454,7 @@ function Home() {
     JSON.parse(localStorage.getItem("kuri_user") || "null"),
   );
   const [matches, setMatches] = useState<Match[]>(),
+    [allMatches, setAllMatches] = useState<Match[]>([]),
     [selectedId, setSelectedId] = useState(""),
     [questions, setQuestions] = useState<Question[]>([]),
     [predictions, setPredictions] = useState<Prediction[]>([]),
@@ -448,8 +472,9 @@ function Home() {
         localStorage.setItem("kuri_user", JSON.stringify(identity));
         setUser(identity);
       }
-      const open = await api<Match[]>("/matches/open");
+      const [open, completeMatchList] = await Promise.all([api<Match[]>("/matches/open"), api<Match[]>("/matches")]);
       setMatches(open);
+      setAllMatches(completeMatchList);
       if (open[0]) setSelectedId(open[0].id);
       setPredictions(
         await api<Prediction[]>(`/users/${identity.id}/predictions`, {
@@ -601,6 +626,7 @@ function Home() {
         </>
       )}
       <PredictionHistory predictions={predictions} />
+      <MatchHistory matches={allMatches} />
     </Shell>
   );
 }
@@ -846,6 +872,21 @@ function AdminQuestions() {
       setError((x as Error).message);
     }
   }
+  async function saveMatchResult(e: FormEvent<HTMLFormElement>, id: string) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const score = (name: string) => String(f.get(name) ?? "").trim() === "" ? null : Number(f.get(name));
+    try {
+      await api(`/admin/matches/${id}/result`, {
+        method: "PUT",
+        body: JSON.stringify({ kuriyama_score: score("kuriyama_score"), opponent_score: score("opponent_score"), status: f.get("status") }),
+      });
+      await refresh();
+      setNotice("Resultado del partido actualizado");
+    } catch (x) {
+      setError((x as Error).message);
+    }
+  }
   async function create(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget,
@@ -1031,8 +1072,8 @@ function AdminQuestions() {
         <section className="admin-card">
           <h2>Partidos</h2>
           <div className="admin-table match-admin-table">
-            <div className="table-head"><span>Partido</span><span>Fecha</span><span>Estado</span><span>Acciones</span></div>
-            {matches.map(m=><div key={m.id}><b>Kuriyama vs {m.opponent}</b><span>{date(m.kickoff_at)}</span><StatusBadge status={m.status}/><div className="row-actions"><button onClick={()=>loadQuestions(m.id)}>Preguntas</button>{deleteMatch===m.id?<><button onClick={()=>setDeleteMatch('')}>Cancelar</button><button className="danger-small" onClick={()=>removeMatch(m.id)}>Confirmar</button></>:<button className="danger-small" onClick={()=>setDeleteMatch(m.id)}><Trash2/> Eliminar</button>}</div></div>)}
+            <div className="table-head"><span>Partido</span><span>Fecha</span><span>Marcador</span><span>Estado</span><span>Acciones</span></div>
+            {matches.map(m=><form key={m.id} onSubmit={(e)=>saveMatchResult(e,m.id)}><b>Kuriyama vs {m.opponent}</b><span>{date(m.kickoff_at)}</span><div className="score-inputs"><input aria-label="Goles Kuriyama" name="kuriyama_score" type="number" min="0" max="99" defaultValue={m.kuriyama_score ?? ""}/><b>–</b><input aria-label={`Goles ${m.opponent}`} name="opponent_score" type="number" min="0" max="99" defaultValue={m.opponent_score ?? ""}/></div><select name="status" defaultValue={m.status}><option value="OPEN">Próximo / abierto</option><option value="LOCKED">Cerrado</option><option value="FINISHED">Finalizado</option><option value="CANCELLED">Cancelado</option><option value="DRAFT">Borrador</option></select><div className="row-actions"><button>Guardar resultado</button><button type="button" onClick={()=>loadQuestions(m.id)}>Preguntas</button>{deleteMatch===m.id?<><button type="button" onClick={()=>setDeleteMatch('')}>Cancelar</button><button type="button" className="danger-small" onClick={()=>removeMatch(m.id)}>Confirmar</button></>:<button type="button" className="danger-small" onClick={()=>setDeleteMatch(m.id)}><Trash2/> Eliminar</button>}</div></form>)}
           </div>
         </section>
         <section className="admin-card" id="preguntas">
