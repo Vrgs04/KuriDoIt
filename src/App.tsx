@@ -172,8 +172,9 @@ function SportsHeader({
           <span>DOIT</span>
         </NavLink>
         <nav className="desktop-nav">
-          <NavLink to="/">Inicio</NavLink>
-          <a href="#markets">Partidos</a>
+          <NavLink to="/">Partidos</NavLink>
+          <NavLink to="/predictions">Mis predicciones</NavLink>
+          <NavLink to="/matches/history">Resultados</NavLink>
           <NavLink to="/ranking">Ranking</NavLink>
           <NavLink to="/admin/login">Admin</NavLink>
         </nav>
@@ -186,8 +187,9 @@ function SportsHeader({
       {mobileMenuOpen && (
         <div className="mobile-navigation-backdrop" onClick={closeMobileMenu}>
           <nav id="mobile-navigation" className="mobile-navigation" onClick={(event) => event.stopPropagation()}>
-            <NavLink to="/" onClick={closeMobileMenu}><HomeIcon /> Inicio</NavLink>
-            <a href="/#markets" onClick={closeMobileMenu}><Target /> Partidos</a>
+            <NavLink to="/" onClick={closeMobileMenu}><HomeIcon /> Partidos</NavLink>
+            <NavLink to="/predictions" onClick={closeMobileMenu}><Target /> Mis predicciones</NavLink>
+            <NavLink to="/matches/history" onClick={closeMobileMenu}><Clock3 /> Resultados</NavLink>
             <NavLink to="/ranking" onClick={closeMobileMenu}><Trophy /> Ranking</NavLink>
             <NavLink to="/admin/login" onClick={closeMobileMenu}><Shield /> Administrador</NavLink>
           </nav>
@@ -196,8 +198,9 @@ function SportsHeader({
       <div className="sports-nav">
         <span className="ball">●</span>
         <b>Fútbol</b>
-        <a href="#markets">Próximos partidos</a>
-        <a href="#my-picks">Mis Picks</a>
+        <NavLink to="/">Próximos partidos</NavLink>
+        <NavLink to="/predictions">Mis predicciones</NavLink>
+        <NavLink to="/matches/history">Resultados</NavLink>
       </div>
     </>
   );
@@ -208,12 +211,16 @@ function MobileBottomNav() {
     <nav className="bottom-nav">
       <NavLink to="/">
         <HomeIcon />
-        <span>Inicio</span>
+        <span>Partidos</span>
       </NavLink>
-      <a href="/#my-picks">
+      <NavLink to="/predictions">
         <Target />
         <span>Picks</span>
-      </a>
+      </NavLink>
+      <NavLink to="/matches/history">
+        <Clock3 />
+        <span>Resultados</span>
+      </NavLink>
       <NavLink to="/ranking">
         <Trophy />
         <span>Ranking</span>
@@ -449,7 +456,7 @@ function Welcome() {
   );
 }
 
-function Home() {
+function Home({ view = "matches" }: { view?: "matches" | "predictions" | "history" }) {
   const [user, setUser] = useState<UserIdentity | null>(() =>
     JSON.parse(localStorage.getItem("kuri_user") || "null"),
   );
@@ -536,6 +543,7 @@ function Home() {
   }
   return (
     <Shell>
+      {view === "matches" && <>
       <section className="content-section">
         <div className="title-row">
           <div>
@@ -625,8 +633,9 @@ function Home() {
           </section>
         </>
       )}
-      <PredictionHistory predictions={predictions} />
-      <MatchHistory matches={allMatches} />
+      </>}
+      {view === "predictions" && <PredictionHistory predictions={predictions} />}
+      {view === "history" && <MatchHistory matches={allMatches} />}
     </Shell>
   );
 }
@@ -1787,11 +1796,13 @@ export default function App() {
   return (
     <Routes>
       <Route path="/welcome" element={<Welcome />} />
+      <Route path="/predictions" element={<Home view="predictions" />} />
+      <Route path="/matches/history" element={<Home view="history" />} />
       <Route path="/ranking" element={<Ranking />} />
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin/questions" element={<AdminQuestions />} />
       <Route path="/admin" element={<AdminQuestions />} />
-      <Route path="*" element={<Home />} />
+      <Route path="*" element={<Home view="matches" />} />
     </Routes>
   );
 }

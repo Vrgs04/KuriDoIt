@@ -4,6 +4,8 @@ PWA interna de predicciones para partidos de Kuriyama. Cada partido contiene pre
 
 Los partidos admiten marcador de Kuriyama y del rival. El administrador puede registrar o corregir el resultado y cambiar el estado; la pantalla principal muestra partidos finalizados y próximos en el historial.
 
+La experiencia del usuario se divide en rutas independientes: `/` para partidos y preguntas, `/predictions` para sus selecciones, `/matches/history` para resultados y próximos encuentros, y `/ranking` para la clasificación.
+
 ## Arquitectura
 
 - `src/`: React + TypeScript + Vite + Tailwind, mobile-first.
