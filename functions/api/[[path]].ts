@@ -17,6 +17,8 @@ const optionSchema = z.object({ market_id: z.string().uuid(), label: text, line_
 const questionType = z.enum(['CUSTOM','TOTAL_GOALS','FIRST_HALF_GOALS','GOAL_SCORER','EXACT_SCORE'])
 const questionOptionSchema = z.object({ value_key: z.string().trim().min(1).max(100), label: z.string().trim().min(1).max(100), points_value: z.number().positive().max(100) })
 const questionSchema = z.object({ match_id: z.string().uuid(), prompt: z.string().trim().min(3).max(240), points_value: z.number().positive().max(100), status: z.enum(['OPEN','CLOSED','SETTLED','DISABLED']).default('OPEN'), question_type: questionType.default('CUSTOM'), options: z.array(questionOptionSchema).max(60) }).refine(value=>value.question_type==='EXACT_SCORE'||value.options.length>=2,'Se requieren al menos dos respuestas')
+const standingNumber = z.number().int().min(-999).max(9999).nullable()
+const standingSchema = z.object({ group_name:z.string().trim().min(1).max(60),place:z.number().int().min(1).max(999).nullable(),team:text,played:standingNumber,won:standingNumber,drawn:standingNumber,lost:standingNumber,goals_for:standingNumber,goals_against:standingNumber,goal_difference:standingNumber,penalty_points:standingNumber,points:standingNumber })
 
 async function questionsWithOptions(db: D1Database, matchId: string, userId?: string) {
   const sql="SELECT q.id,q.match_id,q.prompt,q.points_value,q.status,q.question_type,q.special_type,q.correct_answer,q.settled_at,m.kickoff_at,m.picks_close_at FROM questions q JOIN matches m ON m.id=q.match_id WHERE q.match_id=? AND q.status!='DISABLED' ORDER BY CASE WHEN q.special_type='EXACT_SCORE' THEN 0 ELSE 1 END,q.created_at"
@@ -78,6 +80,7 @@ async function route(c: Ctx) {
   }
   if (method === 'GET' && path === '/matches') return json((await db.prepare('SELECT * FROM matches ORDER BY kickoff_at DESC').all()).results)
   if (method === 'GET' && path === '/matches/open') return json((await db.prepare("SELECT * FROM matches WHERE status='OPEN' AND kickoff_at>? ORDER BY kickoff_at").bind(now()).all()).results)
+  if (method === 'GET' && path === '/standings') return json((await db.prepare('SELECT * FROM standings ORDER BY sort_order').all()).results)
   if (method === 'GET' && path.startsWith('/markets/')) {
     const matchId = path.slice(9)
     const rows = (await db.prepare("SELECT m.*,o.id option_id,o.label option_label,o.line_value,o.decimal_odds,o.settlement_status FROM markets m JOIN market_options o ON o.market_id=m.id WHERE m.match_id=? AND m.status='OPEN' ORDER BY m.created_at,o.created_at").bind(matchId).all()).results
@@ -111,6 +114,8 @@ async function route(c: Ctx) {
     const stats=await db.prepare("SELECT (SELECT COUNT(*) FROM users WHERE deleted_at IS NULL) users,(SELECT COUNT(*) FROM predictions) picks,SUM(CASE WHEN status='PENDING' THEN 1 ELSE 0 END) pending,SUM(CASE WHEN status='CORRECT' THEN 1 ELSE 0 END) won,SUM(CASE WHEN status='INCORRECT' THEN 1 ELSE 0 END) lost FROM predictions").first()
     return json(stats)
   }
+  const standingPut=path.match(/^\/admin\/standings\/([^/]+)$/)
+  if(method==='PUT'&&standingPut){const v=await body(c.request,standingSchema);await db.prepare('UPDATE standings SET group_name=?,place=?,team=?,played=?,won=?,drawn=?,lost=?,goals_for=?,goals_against=?,goal_difference=?,penalty_points=?,points=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(v.group_name,v.place,v.team,v.played,v.won,v.drawn,v.lost,v.goals_for,v.goals_against,v.goal_difference,v.penalty_points,v.points,standingPut[1]).run();return json({ok:true})}
   if (method === 'POST' && path === '/admin/matches') { const v=await body(c.request,matchSchema), key=id(); await db.prepare('INSERT INTO matches(id,opponent,kuriyama_side,kickoff_at,picks_close_at,status) VALUES(?,?,?,?,?,?)').bind(key,v.opponent,v.kuriyama_side,v.kickoff_at,v.picks_close_at,v.status).run(); return json({id:key},201) }
   const matchPut=path.match(/^\/admin\/matches\/([^/]+)$/)
   if(method==='PUT'&&matchPut){const v=await body(c.request,matchSchema);await db.prepare('UPDATE matches SET previous_opponent=CASE WHEN opponent<>? THEN opponent ELSE previous_opponent END,opponent=?,kuriyama_side=?,kickoff_at=?,picks_close_at=?,status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(v.opponent,v.opponent,v.kuriyama_side,v.kickoff_at,v.picks_close_at,v.status,matchPut[1]).run();return json({ok:true})}

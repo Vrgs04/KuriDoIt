@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   Routes,
   Route,
@@ -15,6 +15,7 @@ import {
   Menu,
   Pencil,
   Shield,
+  Table2,
   Target,
   Trash2,
   Trophy,
@@ -29,6 +30,7 @@ import {
   type Prediction,
   type Question,
   type QuestionType,
+  type Standing,
 } from "./api";
 
 const fmt = (n: number) => Number(n).toFixed(2);
@@ -184,6 +186,7 @@ function SportsHeader({
           <NavLink to="/predictions">Mis predicciones</NavLink>
           <NavLink to="/matches/history">Resultados</NavLink>
           <NavLink to="/ranking">Ranking</NavLink>
+          <NavLink to="/standings">Tabla de posiciones</NavLink>
           <NavLink to="/admin/login">Admin</NavLink>
         </nav>
         {user ? (
@@ -199,6 +202,7 @@ function SportsHeader({
             <NavLink to="/predictions" onClick={closeMobileMenu}><Target /> Mis predicciones</NavLink>
             <NavLink to="/matches/history" onClick={closeMobileMenu}><Clock3 /> Resultados</NavLink>
             <NavLink to="/ranking" onClick={closeMobileMenu}><Trophy /> Ranking</NavLink>
+            <NavLink to="/standings" onClick={closeMobileMenu}><Table2 /> Tabla de posiciones</NavLink>
             <NavLink to="/admin/login" onClick={closeMobileMenu}><Shield /> Administrador</NavLink>
           </nav>
         </div>
@@ -232,6 +236,10 @@ function MobileBottomNav() {
       <NavLink to="/ranking">
         <Trophy />
         <span>Ranking</span>
+      </NavLink>
+      <NavLink to="/standings">
+        <Table2 />
+        <span>Posiciones</span>
       </NavLink>
     </nav>
   );
@@ -815,7 +823,33 @@ function Ranking() {
   );
 }
 
-function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" | "predictions" | "moderation" }) {
+function StandingsPage() {
+  const [rows, setRows] = useState<Standing[]>([]);
+  useEffect(() => { api<Standing[]>("/standings").then(setRows); }, []);
+  const groups = [...new Set(rows.map((row) => row.group_name))];
+  const value = (number: number | null) => number ?? "–";
+  return <Shell>
+    <section className="content-section standings-page">
+      <div className="page-heading"><Table2 /><div><span className="section-kicker">TEMPORADA ACTUAL</span><h1>Tabla de posiciones</h1></div></div>
+      {rows.length ? <div className="standings-scroll"><table className="standings-table">
+        <thead><tr><th>Lugar</th><th>Equipo</th><th>JJ</th><th>JG</th><th>JE</th><th>JP</th><th>GF</th><th>GC</th><th>Dif</th><th>PA</th><th>Pts.</th></tr></thead>
+        <tbody>{groups.map((group) => <Fragment key={group}>
+          <tr className="standings-group"><th colSpan={11}>{group}</th></tr>
+          {rows.filter((row) => row.group_name === group).map((row) => <tr key={row.id} className={row.team.toLowerCase().includes("(baja)") ? "inactive-team" : row.team === "KURIYAMA" ? "kuriyama-team" : ""}>
+            <td>{value(row.place)}</td><th>{row.team}</th><td>{value(row.played)}</td><td>{value(row.won)}</td><td>{value(row.drawn)}</td><td>{value(row.lost)}</td><td>{value(row.goals_for)}</td><td>{value(row.goals_against)}</td><td>{value(row.goal_difference)}</td><td>{value(row.penalty_points)}</td><td><b>{value(row.points)}</b></td>
+          </tr>)}
+        </Fragment>)}</tbody>
+      </table></div> : <div className="empty-state">Todavía no hay posiciones registradas.</div>}
+    </section>
+  </Shell>;
+}
+
+const standingFields = [
+  ["place","Lugar"],["played","JJ"],["won","JG"],["drawn","JE"],["lost","JP"],
+  ["goals_for","GF"],["goals_against","GC"],["goal_difference","Dif"],["penalty_points","PA"],["points","Pts."],
+] as const;
+
+function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" | "predictions" | "moderation" | "standings" }) {
   type AdminQuestion = Question & {
     correct_answer?: string;
     settled_at?: string;
@@ -838,6 +872,7 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
     [templates, setTemplates] = useState<QuestionTemplate[]>([]),
     [predictions, setPredictions] = useState<AdminPrediction[]>([]),
     [ranking, setRanking] = useState<RankingUser[]>([]),
+    [standings, setStandings] = useState<Standing[]>([]),
     [deleteMatch, setDeleteMatch] = useState(""),
     [deletePrediction, setDeletePrediction] = useState(""),
     [moderateUser, setModerateUser] = useState(""),
@@ -863,16 +898,18 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
     nav(`/admin/questions?match_id=${encodeURIComponent(matchId)}`);
   }
   async function refresh() {
-    const [matchList, predictionList, rankingList, templateList] = await Promise.all([
+    const [matchList, predictionList, rankingList, templateList, standingList] = await Promise.all([
       api<Match[]>("/matches"),
       api<AdminPrediction[]>("/admin/predictions"),
       api<RankingUser[]>("/leaderboard"),
       api<QuestionTemplate[]>("/admin/question-templates"),
+      api<Standing[]>("/standings"),
     ]);
     setMatches(matchList);
     setPredictions(predictionList);
     setRanking(rankingList);
     setTemplates(templateList);
+    setStandings(standingList);
     return matchList;
   }
   useEffect(() => {
@@ -1069,6 +1106,21 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
       setError((x as Error).message);
     }
   }
+  async function saveStanding(e: FormEvent<HTMLFormElement>, id: string) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const optionalNumber = (name: string) => String(f.get(name) ?? "").trim() === "" ? null : Number(f.get(name));
+    try {
+      await api(`/admin/standings/${id}`, { method: "PUT", body: JSON.stringify({
+        group_name: f.get("group_name"), team: f.get("team"), place: optionalNumber("place"),
+        played: optionalNumber("played"), won: optionalNumber("won"), drawn: optionalNumber("drawn"), lost: optionalNumber("lost"),
+        goals_for: optionalNumber("goals_for"), goals_against: optionalNumber("goals_against"), goal_difference: optionalNumber("goal_difference"),
+        penalty_points: optionalNumber("penalty_points"), points: optionalNumber("points"),
+      }) });
+      await refresh();
+      setNotice("Tabla de posiciones actualizada");
+    } catch (x) { setError((x as Error).message); }
+  }
   async function logout() {
     await api("/admin/logout", { method: "POST" });
     nav("/admin/login");
@@ -1086,6 +1138,7 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
           <NavLink to="/admin/questions">Preguntas</NavLink>
           <NavLink to="/admin/predictions">Predicciones</NavLink>
           <NavLink to="/admin/moderation">Moderación</NavLink>
+          <NavLink to="/admin/standings">Tabla de posiciones</NavLink>
         </nav>
         <button onClick={logout}>
           <LogOut /> Cerrar sesión
@@ -1106,9 +1159,10 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
           <NavLink to="/admin/questions">Preguntas</NavLink>
           <NavLink to="/admin/predictions">Predicciones</NavLink>
           <NavLink to="/admin/moderation">Moderación</NavLink>
+          <NavLink to="/admin/standings">Posiciones</NavLink>
         </nav>
         <span className="section-kicker">ADMINISTRACIÓN</span>
-        <h1>{view === "matches" ? "Partidos" : view === "questions" ? "Preguntas" : view === "predictions" ? "Predicciones realizadas" : "Moderación"}</h1>
+        <h1>{view === "matches" ? "Partidos" : view === "questions" ? "Preguntas" : view === "predictions" ? "Predicciones realizadas" : view === "standings" ? "Tabla de posiciones" : "Moderación"}</h1>
         {error && <p className="error">{error}</p>}
         {notice && (
           <div className="admin-notice">
@@ -1316,6 +1370,18 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
           <div className="admin-table prediction-admin-table">
             <div className="table-head"><span>Usuario</span><span>Partido / pregunta</span><span>Respuesta</span><span>Puntos</span><span>Acción</span></div>
             {predictions.map(p=><div key={p.id}><b>{p.name}</b><span>vs {p.opponent}<small>{p.prompt}</small></span><strong>{p.answer_label ?? (p.answer==='YES'?'SÍ':p.answer==='NO'?'NO':p.answer)}</strong><span>{p.status==='PENDING'?`±${fmt(p.points_snapshot)}`:`${p.points_awarded>0?'+':''}${fmt(p.points_awarded)}`}</span><div className="row-actions">{deletePrediction===p.id?<><button onClick={()=>setDeletePrediction('')}>Cancelar</button><button className="danger-small" onClick={()=>removePrediction(p.id)}>Confirmar</button></>:<button className="danger-small" onClick={()=>setDeletePrediction(p.id)}><Trash2/> Eliminar</button>}</div></div>)}
+          </div>
+        </section>}
+        {view === "standings" && <section className="admin-card" id="posiciones">
+          <h2>Editar tabla de posiciones</h2>
+          <p className="admin-help">Los cambios guardados se muestran inmediatamente en la tabla pública.</p>
+          <div className="standing-admin-list">
+            {standings.map((row) => <form key={row.id} onSubmit={(event) => saveStanding(event,row.id)}>
+              <label>Grupo<input name="group_name" required defaultValue={row.group_name}/></label>
+              <label className="standing-team-field">Equipo<input name="team" required minLength={2} defaultValue={row.team}/></label>
+              {standingFields.map(([field,label]) => <label key={field}>{label}<input name={field} type="number" defaultValue={row[field] ?? ""}/></label>)}
+              <button>Guardar</button>
+            </form>)}
           </div>
         </section>}
         {view === "moderation" && <section className="admin-card" id="moderacion">
@@ -1860,11 +1926,13 @@ export default function App() {
       <Route path="/predictions" element={<Home view="predictions" />} />
       <Route path="/matches/history" element={<Home view="history" />} />
       <Route path="/ranking" element={<Ranking />} />
+      <Route path="/standings" element={<StandingsPage />} />
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin/matches" element={<AdminQuestions view="matches" />} />
       <Route path="/admin/questions" element={<AdminQuestions view="questions" />} />
       <Route path="/admin/predictions" element={<AdminQuestions view="predictions" />} />
       <Route path="/admin/moderation" element={<AdminQuestions view="moderation" />} />
+      <Route path="/admin/standings" element={<AdminQuestions view="standings" />} />
       <Route path="/admin" element={<Navigate to="/admin/matches" replace />} />
       <Route path="*" element={<Home view="matches" />} />
     </Routes>
