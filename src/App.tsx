@@ -867,6 +867,7 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
     [matches, setMatches] = useState<Match[]>([]),
     [selected, setSelected] = useState(""),
     [questions, setQuestions] = useState<AdminQuestion[]>([]),
+    [optionDrafts, setOptionDrafts] = useState<Record<string, Array<{ value_key: string; label: string; points_value: number }>>>({}),
     [templates, setTemplates] = useState<QuestionTemplate[]>([]),
     [predictions, setPredictions] = useState<AdminPrediction[]>([]),
     [ranking, setRanking] = useState<RankingUser[]>([]),
@@ -883,13 +884,9 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
     [error, setError] = useState("");
   async function loadQuestions(matchId: string) {
     setSelected(matchId);
-    setQuestions(
-      matchId
-        ? await api<AdminQuestion[]>(
-            `/admin/questions?match_id=${encodeURIComponent(matchId)}`,
-          )
-        : [],
-    );
+    const list = matchId ? await api<AdminQuestion[]>(`/admin/questions?match_id=${encodeURIComponent(matchId)}`) : [];
+    setQuestions(list);
+    setOptionDrafts(Object.fromEntries(list.map((question) => [question.id, question.options.map((option) => ({ value_key: option.value_key, label: option.label, points_value: option.points_value }))])));
   }
   async function openMatchQuestions(matchId: string) {
     await loadQuestions(matchId);
@@ -1035,11 +1032,7 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     try {
-      const options = q.options.map((option, index) => ({
-        value_key: option.value_key,
-        label: String(f.get(`option_label_${index}`)),
-        points_value: Number(f.get(`option_points_${index}`)),
-      }));
+      const options = (optionDrafts[q.id] ?? []).map((option) => ({ value_key: option.value_key, label: option.label.trim(), points_value: Number(option.points_value) }));
       await api(`/admin/questions/${q.id}`, {
         method: "PUT",
         body: JSON.stringify({
@@ -1056,6 +1049,15 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
     } catch (x) {
       setError((x as Error).message);
     }
+  }
+  function addQuestionOption(q: AdminQuestion) {
+    setOptionDrafts((current) => ({ ...current, [q.id]: [...(current[q.id] ?? []), { value_key: `CUSTOM_${crypto.randomUUID()}`, label: "", points_value: Number(q.points_value) }]}));
+  }
+  function changeQuestionOption(questionId: string, index: number, field: "label" | "points_value", value: string) {
+    setOptionDrafts((current) => ({ ...current, [questionId]: (current[questionId] ?? []).map((option, optionIndex) => optionIndex === index ? { ...option, [field]: field === "points_value" ? Number(value) : value } : option) }));
+  }
+  function removeQuestionOption(questionId: string, index: number) {
+    setOptionDrafts((current) => ({ ...current, [questionId]: (current[questionId] ?? []).filter((_, optionIndex) => optionIndex !== index) }));
   }
   async function settle(id: string, correctAnswers: string[] = [], numericResult?: number, voidQuestion = false, scoreResult?: { kuriyama_score: number; opponent_score: number }) {
     try {
@@ -1311,15 +1313,18 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
                       <option value="DISABLED">Desactivada</option>
                     </select>
                   </label>
-                  <div className="question-option-editor">
+                  {q.question_type !== "EXACT_SCORE" && <div className="question-option-editor">
                     <b>Respuestas y puntos</b>
-                    {q.options.map((option, index) => (
+                    {(optionDrafts[q.id] ?? []).map((option, index) => (
                       <div key={option.value_key}>
-                        <input name={`option_label_${index}`} defaultValue={option.label} disabled={q.status === "SETTLED"} />
-                        <input name={`option_points_${index}`} type="number" min="0.5" max="100" step="0.5" defaultValue={option.points_value} disabled={q.status === "SETTLED"} />
+                        <input aria-label={`Respuesta ${index + 1}`} value={option.label} onChange={(event) => changeQuestionOption(q.id,index,"label",event.target.value)} disabled={q.status === "SETTLED"} required />
+                        <input aria-label={`Puntos de respuesta ${index + 1}`} type="number" min="0.5" max="100" step="0.5" value={option.points_value} onChange={(event) => changeQuestionOption(q.id,index,"points_value",event.target.value)} disabled={q.status === "SETTLED"} required />
+                        {q.status !== "SETTLED" && (q.question_type === "CUSTOM" || q.question_type === "GOAL_SCORER") && <button type="button" className="remove-option" disabled={(optionDrafts[q.id]?.length ?? 0) <= 2} onClick={() => removeQuestionOption(q.id,index)}><Trash2 /> Eliminar</button>}
                       </div>
                     ))}
-                  </div>
+                    {q.status !== "SETTLED" && (q.question_type === "CUSTOM" || q.question_type === "GOAL_SCORER") && <button type="button" className="add-option" onClick={() => addQuestionOption(q)}>+ Agregar opción</button>}
+                    {(q.question_type === "CUSTOM" || q.question_type === "GOAL_SCORER") && <small>Se requieren al menos dos opciones. No podrás eliminar una respuesta que ya tenga predicciones.</small>}
+                  </div>}
                   <div className="question-admin-actions">
                     {q.status !== "SETTLED" && (
                       <button className="secondary-small">Guardar</button>
