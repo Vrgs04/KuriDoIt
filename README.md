@@ -6,6 +6,8 @@ Los partidos admiten marcador de Kuriyama y del rival. El administrador puede re
 
 La experiencia del usuario se divide en rutas independientes: `/` para partidos y preguntas, `/predictions` para sus selecciones, `/matches/history` para resultados y próximos encuentros, y `/ranking` para la clasificación.
 
+El acceso busca el nombre normalizado y reutiliza la cuenta existente, renovando su token sin contraseña. Una sesión inválida elimina la identidad local y devuelve al acceso con el mensaje `Usuario no válido`. Mis predicciones separa pendientes y pasadas en acordeones; el detalle del ranking se limita al partido más reciente disponible para evitar mezclar jornadas.
+
 ## Arquitectura
 
 - `src/`: React + TypeScript + Vite + Tailwind, mobile-first.

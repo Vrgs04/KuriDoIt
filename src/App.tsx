@@ -329,47 +329,34 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function PredictionHistory({ predictions }: { predictions: Prediction[] }) {
-  const [open, setOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const groups = [
+    { id: "pending", title: "Pendientes", items: predictions.filter((prediction) => prediction.status === "PENDING"), empty: "No tienes predicciones pendientes." },
+    { id: "past", title: "Predicciones pasadas", items: predictions.filter((prediction) => prediction.status !== "PENDING"), empty: "Todavía no tienes predicciones pasadas." },
+  ];
   return (
     <section id="my-picks" className="content-section">
-      <button
-        type="button"
-        className="title-row history-toggle"
-        aria-expanded={open}
-        aria-controls="prediction-history-content"
-        onClick={() => setOpen((current) => !current)}
-      >
-        <div>
-          <span className="section-kicker">HISTORIAL</span>
-          <h2>Mis predicciones</h2>
-        </div>
-        <span>{predictions.length} <ChevronDown className={open ? "open" : ""} /></span>
-      </button>
-      {open && (predictions.length ? (
-        <div id="prediction-history-content" className="prediction-history">
-          {predictions.map((p) => (
-            <article key={p.id}>
-              <div>
-                <b>KURIYAMA VS {p.opponent.toUpperCase()}</b>
-                <small>{date(p.kickoff_at)}</small>
-              </div>
-              <p>{p.prompt}</p>
-              <strong className="answer">
-                {p.answer_label ?? (p.answer === "YES" ? "SÍ" : p.answer === "NO" ? "NO" : p.answer)}
-              </strong>
-              <StatusBadge status={p.status} />
-              <em className={p.points_awarded < 0 ? "negative" : ""}>
-                {p.status === "PENDING"
-                  ? `±${fmt(p.points_snapshot)}`
-                  : `${p.points_awarded > 0 ? "+" : ""}${fmt(p.points_awarded)}`}{" "}
-                pts
-              </em>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div id="prediction-history-content" className="empty-state">Tus predicciones aparecerán aquí.</div>
-      ))}
+      <div className="page-heading compact-heading"><Target /><div><span className="section-kicker">HISTORIAL</span><h1>Mis predicciones</h1></div></div>
+      <div className="prediction-categories">
+        {groups.map((group) => {
+          const open = Boolean(openSections[group.id]);
+          return <div className="prediction-category" key={group.id}>
+            <button type="button" className="history-toggle" aria-expanded={open} aria-controls={`prediction-${group.id}`} onClick={() => setOpenSections((current) => ({ ...current, [group.id]: !open }))}>
+              <div><h2>{group.title}</h2><small>{group.items.length} predicciones</small></div>
+              <ChevronDown className={open ? "open" : ""} />
+            </button>
+            {open && (group.items.length ? <div id={`prediction-${group.id}`} className="prediction-history">
+              {group.items.map((p) => <article key={p.id}>
+                <div><b>KURIYAMA VS {p.opponent.toUpperCase()}</b><small>{date(p.kickoff_at)}</small></div>
+                <p>{p.prompt}</p>
+                <strong className="answer">{p.answer_label ?? (p.answer === "YES" ? "SÍ" : p.answer === "NO" ? "NO" : p.answer)}</strong>
+                <StatusBadge status={p.status} />
+                <em className={p.points_awarded < 0 ? "negative" : ""}>{p.status === "PENDING" ? `±${fmt(p.points_snapshot)}` : `${p.points_awarded > 0 ? "+" : ""}${fmt(p.points_awarded)}`} pts</em>
+              </article>)}
+            </div> : <div id={`prediction-${group.id}`} className="empty-state">{group.empty}</div>)}
+          </div>;
+        })}
+      </div>
     </section>
   );
 }
@@ -401,7 +388,11 @@ function Welcome() {
   const nav = useNavigate(),
     [name, setName] = useState(""),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(() => {
+      const message = sessionStorage.getItem("kuri_login_error") ?? "";
+      sessionStorage.removeItem("kuri_login_error");
+      return message;
+    });
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -431,15 +422,15 @@ function Welcome() {
         <br />
         <em>Sube en el ranking.</em>
       </h1>
-      <p>Compite con tus compañeros y demuestra cuánto sabes de fútbol.</p>
+      <p>Busca tu nombre para entrar a tu usuario. Si todavía no existe, se creará automáticamente.</p>
       <form onSubmit={submit} className="login-card">
         <label>
-          ¿Cómo te llamas?
+          Buscar usuario por nombre
           <input
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Tu nombre"
+            placeholder="Escribe tu nombre"
             minLength={2}
             maxLength={80}
           />
@@ -670,7 +661,7 @@ function RankingTable({
     try {
       const own = viewer?.id === id;
       const data = await api<Prediction[]>(
-        `/users/${id}/predictions`,
+        `/users/${id}/predictions?latest_match=1`,
         own && viewer?.token
           ? { headers: { Authorization: `Bearer ${viewer.token}` } }
           : undefined,
