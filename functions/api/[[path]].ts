@@ -54,6 +54,7 @@ const params = (url: URL) => Object.fromEntries(url.searchParams)
 async function route(c: Ctx) {
   const url = new URL(c.request.url), method = c.request.method, path = normalizeApiPath(url.pathname)
   const db = c.env.DB
+  if(method==='GET'&&path==='/users/search'){const query=url.searchParams.get('q')?.trim()??'';if(query.length<1)return json([]);if(query.length>80)return json({error:'Búsqueda inválida'},400);const normalized=norm(query).replace(/[\\%_]/g,character=>`\\${character}`);return json((await db.prepare("SELECT name FROM users WHERE deleted_at IS NULL AND normalized_name LIKE ? ESCAPE '\\' ORDER BY CASE WHEN normalized_name=? THEN 0 ELSE 1 END,name LIMIT 8").bind(`%${normalized}%`,normalized).all()).results)}
   if (method === 'POST' && path === '/users') {
     const { name } = await body(c.request, z.object({ name: text }))
     const normalized = norm(name); let user = await db.prepare('SELECT id,name,normalized_name,created_at,updated_at FROM users WHERE normalized_name=? AND deleted_at IS NULL').bind(normalized).first()

@@ -8,6 +8,12 @@ button,a { touch-action: manipulation; }
 .admin-login {
   background: var(--navy);
 }
+.user-suggestions { margin-top: 6px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 5px; background: white; }
+.user-suggestions>small { padding: 10px; color: var(--muted); text-align: center; }
+.user-suggestions>button { min-height: 42px; padding: 8px 10px; display: flex; align-items: center; gap: 9px; border: 0; border-bottom: 1px solid var(--border); background: white; color: var(--text); text-align: left; font-weight: 700; }
+.user-suggestions>button:last-child { border-bottom: 0; }
+.user-suggestions>button:hover,.user-suggestions>button:focus { background: #edf6ff; color: var(--primary-dark); outline: none; }
+.user-suggestions svg { width: 16px; color: var(--primary); }
 
 .account-menu { position: relative; margin-left: auto; }
 .mobile-navigation-backdrop { display: none; }

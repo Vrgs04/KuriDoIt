@@ -408,12 +408,27 @@ function MatchHistory({ matches }: { matches: Match[] }) {
 function Welcome() {
   const nav = useNavigate(),
     [name, setName] = useState(""),
+    [suggestions, setSuggestions] = useState<Array<{ name: string }>>([]),
+    [searching, setSearching] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(() => {
       const message = sessionStorage.getItem("kuri_login_error") ?? "";
       sessionStorage.removeItem("kuri_login_error");
       return message;
     });
+  useEffect(() => {
+    const query = name.trim();
+    if (!query) { setSuggestions([]); setSearching(false); return; }
+    let cancelled = false;
+    setSearching(true);
+    const timeout = window.setTimeout(() => {
+      api<Array<{ name: string }>>(`/users/search?q=${encodeURIComponent(query)}`)
+        .then((results) => { if (!cancelled) setSuggestions(results); })
+        .catch(() => { if (!cancelled) setSuggestions([]); })
+        .finally(() => { if (!cancelled) setSearching(false); });
+    }, 180);
+    return () => { cancelled = true; window.clearTimeout(timeout); };
+  }, [name]);
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -454,8 +469,15 @@ function Welcome() {
             placeholder="Escribe tu nombre"
             minLength={2}
             maxLength={80}
+            autoComplete="off"
+            aria-autocomplete="list"
+            aria-controls="user-suggestions"
           />
         </label>
+        {(searching || suggestions.length > 0) && <div id="user-suggestions" className="user-suggestions" role="listbox">
+          {searching && <small>Buscando usuarios…</small>}
+          {!searching && suggestions.map((user) => <button key={user.name} type="button" role="option" onClick={() => { setName(user.name); setSuggestions([]); }}><UserRound />{user.name}</button>)}
+        </div>}
         {error && <p className="error">{error}</p>}
         <button
           className="primary-button"
