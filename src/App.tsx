@@ -187,7 +187,6 @@ function SportsHeader({
           <NavLink to="/matches/history">Resultados</NavLink>
           <NavLink to="/ranking">Ranking</NavLink>
           <NavLink to="/standings">Tabla de posiciones</NavLink>
-          <NavLink to="/admin/login">Admin</NavLink>
         </nav>
         {user ? (
           <AccountMenu user={user} onChange={onChange} />
@@ -203,7 +202,6 @@ function SportsHeader({
             <NavLink to="/matches/history" onClick={closeMobileMenu}><Clock3 /> Resultados</NavLink>
             <NavLink to="/ranking" onClick={closeMobileMenu}><Trophy /> Ranking</NavLink>
             <NavLink to="/standings" onClick={closeMobileMenu}><Table2 /> Tabla de posiciones</NavLink>
-            <NavLink to="/admin/login" onClick={closeMobileMenu}><Shield /> Administrador</NavLink>
           </nav>
         </div>
       )}
