@@ -1081,6 +1081,21 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
   function removeQuestionOption(questionId: string, index: number) {
     setOptionDrafts((current) => ({ ...current, [questionId]: (current[questionId] ?? []).filter((_, optionIndex) => optionIndex !== index) }));
   }
+  async function moveQuestion(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    const firstMovable = questions[0]?.question_type === "EXACT_SCORE" ? 1 : 0;
+    if (target < firstMovable || target >= questions.length) return;
+    const reordered = [...questions];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    setQuestions(reordered);
+    try {
+      await api("/admin/questions/reorder", { method: "POST", body: JSON.stringify({ match_id: selected, question_ids: reordered.map((question) => question.id) }) });
+      setNotice("Orden de preguntas actualizado");
+    } catch (x) {
+      setError((x as Error).message);
+      await loadQuestions(selected);
+    }
+  }
   async function settle(id: string, correctAnswers: string[] = [], numericResult?: number, voidQuestion = false, scoreResult?: { kuriyama_score: number; opponent_score: number }) {
     try {
       await api("/admin/questions/settle", {
@@ -1303,6 +1318,13 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
             <div className="admin-question-list">
               {questions.map((q) => (
                 <form key={q.id} onSubmit={(e) => update(e, q)}>
+                  <div className="question-order-controls">
+                    <b>{q.prompt}</b>
+                    {q.question_type === "EXACT_SCORE" ? <small>Siempre aparece primero</small> : <span>
+                      <button type="button" disabled={questions.indexOf(q) <= (questions[0]?.question_type === "EXACT_SCORE" ? 1 : 0)} onClick={() => moveQuestion(questions.indexOf(q),-1)}>↑ Subir</button>
+                      <button type="button" disabled={questions.indexOf(q) === questions.length - 1} onClick={() => moveQuestion(questions.indexOf(q),1)}>↓ Bajar</button>
+                    </span>}
+                  </div>
                   <label>
                     Pregunta
                     <input
