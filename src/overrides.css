@@ -81,7 +81,14 @@ button,a { touch-action: manipulation; }
 .match-selector button.active { border-color: var(--primary); box-shadow: inset 3px 0 var(--primary); background: #edf6ff; }
 .match-selector span,.match-selector small { color: var(--muted); font-size: 10px; }
 .question-list { display: flex; flex-direction: column; gap: 7px; }
-.question-list article { padding: 10px 12px; display: grid; grid-template-columns: 28px minmax(0, 1fr) 190px; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+.question-list article { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); overflow: hidden; }
+.question-toggle { width: 100%; min-height: 52px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.question-toggle:hover { background: #f7faff; }
+.question-toggle>span { min-width: 0; display: flex; align-items: center; gap: 10px; }
+.question-toggle b { font-size: 13px; }
+.question-toggle>svg { width: 17px; flex: none; color: var(--primary); transition: transform .18s ease; }
+.question-toggle>svg.open { transform: rotate(180deg); }
+.question-picks { padding: 10px 12px; display: grid; grid-template-columns: minmax(0,1fr) 190px; align-items: center; gap: 10px; border-top: 1px solid var(--border); }
 .question-number { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; background: var(--navy); color: white; font-size: 11px; font-weight: 800; }
 .question-copy { display: flex; flex-direction: column; gap: 4px; }
 .question-copy b { font-size: 13px; }
@@ -158,7 +165,7 @@ button,a { touch-action: manipulation; }
 
 @media (max-width:760px) {
   .match-selector { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .question-list article { grid-template-columns: 25px minmax(0,1fr); }
+  .question-picks { grid-template-columns: 1fr; }
   .binary-answers { grid-column: 1/-1; }
   .prediction-history article { grid-template-columns: minmax(0,1fr) 45px 75px; }
   .prediction-history article>p { grid-column: 1/-1; grid-row: 2; }

@@ -463,6 +463,7 @@ function Home({ view = "matches" }: { view?: "matches" | "predictions" | "histor
     [allMatches, setAllMatches] = useState<Match[]>([]),
     [selectedId, setSelectedId] = useState(""),
     [questions, setQuestions] = useState<Question[]>([]),
+    [openQuestions, setOpenQuestions] = useState<Record<string, boolean>>({}),
     [scoreDrafts, setScoreDrafts] = useState<Record<string, { kuriyama: number; opponent: number }>>({}),
     [predictions, setPredictions] = useState<Prediction[]>([]),
     [msg, setMsg] = useState("");
@@ -496,6 +497,7 @@ function Home({ view = "matches" }: { view?: "matches" | "predictions" | "histor
   }, []);
   useEffect(() => {
     if (!user?.token || !selectedId) return;
+    setOpenQuestions({});
     api<Question[]>(`/questions/${selectedId}?user_id=${user.id}`, {
       headers: { Authorization: `Bearer ${user.token}` },
     })
@@ -607,10 +609,19 @@ function Home({ view = "matches" }: { view?: "matches" | "predictions" | "histor
             {questions.length ? (
               <div className="question-list">
                 {questions.map((q, i) => (
-                  <article key={q.id}>
-                    <div className="question-number">{i + 1}</div>
+                  <article key={q.id} className={openQuestions[q.id] ? "question-open" : "question-closed"}>
+                    <button
+                      type="button"
+                      className="question-toggle"
+                      aria-expanded={Boolean(openQuestions[q.id])}
+                      aria-controls={`question-picks-${q.id}`}
+                      onClick={() => setOpenQuestions((current) => ({ ...current, [q.id]: !current[q.id] }))}
+                    >
+                      <span><span className="question-number">{i + 1}</span><b>{q.prompt}</b></span>
+                      <ChevronDown className={openQuestions[q.id] ? "open" : ""} />
+                    </button>
+                    {openQuestions[q.id] && <div id={`question-picks-${q.id}`} className="question-picks">
                     <div className="question-copy">
-                      <b>{q.prompt}</b>
                       <span>
                         Valor: <strong>{q.question_type === "EXACT_SCORE" ? "+20 puntos · sin penalización" : `±${fmt(q.points_value)} puntos`}</strong>
                       </span>
@@ -638,6 +649,7 @@ function Home({ view = "matches" }: { view?: "matches" | "predictions" | "histor
                           <small>±{fmt(option.points_value)} pts</small>
                         </button>
                       ))}
+                    </div>}
                     </div>}
                   </article>
                 ))}
