@@ -37,6 +37,14 @@ const date = (s: string) =>
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(s));
+const scoreFromAnswer = (answer?: string) => {
+  const match = answer?.match(/^SCORE_(\d+)_(\d+)$/);
+  return match ? { kuriyama: Number(match[1]), opponent: Number(match[2]) } : null;
+};
+const predictionAnswer = (prediction: Prediction) => {
+  const score = scoreFromAnswer(prediction.answer);
+  return score ? `Kuriyama ${score.kuriyama} – ${score.opponent} ${prediction.opponent}` : prediction.answer_label ?? (prediction.answer === "YES" ? "SÍ" : prediction.answer === "NO" ? "NO" : prediction.answer);
+};
 type UserIdentity = { id: string; name: string; token?: string };
 
 function AccountMenu({
@@ -349,7 +357,7 @@ function PredictionHistory({ predictions }: { predictions: Prediction[] }) {
               {group.items.map((p) => <article key={p.id}>
                 <div><b>KURIYAMA VS {p.opponent.toUpperCase()}</b><small>{date(p.kickoff_at)}</small></div>
                 <p>{p.prompt}</p>
-                <strong className="answer">{p.answer_label ?? (p.answer === "YES" ? "SÍ" : p.answer === "NO" ? "NO" : p.answer)}</strong>
+                <strong className="answer">{predictionAnswer(p)}</strong>
                 <StatusBadge status={p.status} />
                 <em className={p.points_awarded < 0 ? "negative" : ""}>{p.status === "PENDING" ? `±${fmt(p.points_snapshot)}` : `${p.points_awarded > 0 ? "+" : ""}${fmt(p.points_awarded)}`} pts</em>
               </article>)}
@@ -455,6 +463,7 @@ function Home({ view = "matches" }: { view?: "matches" | "predictions" | "histor
     [allMatches, setAllMatches] = useState<Match[]>([]),
     [selectedId, setSelectedId] = useState(""),
     [questions, setQuestions] = useState<Question[]>([]),
+    [scoreDrafts, setScoreDrafts] = useState<Record<string, { kuriyama: number; opponent: number }>>({}),
     [predictions, setPredictions] = useState<Prediction[]>([]),
     [msg, setMsg] = useState("");
   const selectedMatch = matches?.find((m) => m.id === selectedId);
@@ -532,6 +541,13 @@ function Home({ view = "matches" }: { view?: "matches" | "predictions" | "histor
       setMsg((e as Error).message);
     }
   }
+  function exactScore(question: Question) {
+    return scoreDrafts[question.id] ?? scoreFromAnswer(question.prediction_answer) ?? { kuriyama: 0, opponent: 0 };
+  }
+  function changeExactScore(question: Question, team: "kuriyama" | "opponent", amount: number) {
+    const current = exactScore(question);
+    setScoreDrafts((drafts) => ({ ...drafts, [question.id]: { ...current, [team]: Math.max(0, Math.min(99, current[team] + amount)) } }));
+  }
   return (
     <Shell>
       {view === "matches" && <>
@@ -596,11 +612,21 @@ function Home({ view = "matches" }: { view?: "matches" | "predictions" | "histor
                     <div className="question-copy">
                       <b>{q.prompt}</b>
                       <span>
-                        Valor: <strong>±{fmt(q.points_value)} puntos</strong>
+                        Valor: <strong>{q.question_type === "EXACT_SCORE" ? "+20 puntos · sin penalización" : `±${fmt(q.points_value)} puntos`}</strong>
                       </span>
                       {q.question_type === "GOAL_SCORER" && (q.prediction_answers?.length ?? 0) > 0 && <span>Selecciones: <strong>{q.prediction_answers?.length}</strong> · Riesgo total: <strong>±{fmt(q.options.filter((option) => q.prediction_answers?.includes(option.value_key)).reduce((sum, option) => sum + Number(option.points_value), 0))} puntos</strong></span>}
                     </div>
-                    <div className="binary-answers configurable-answers">
+                    {q.question_type === "EXACT_SCORE" ? (() => {
+                      const score = exactScore(q);
+                      const value = `SCORE_${score.kuriyama}_${score.opponent}`;
+                      const selected = q.prediction_answer === value;
+                      return <div className="exact-score-picker">
+                        <div><b>Kuriyama</b><span><button onClick={() => changeExactScore(q,"kuriyama",-1)} disabled={score.kuriyama===0}>−</button><strong>{score.kuriyama}</strong><button onClick={() => changeExactScore(q,"kuriyama",1)}>+</button></span></div>
+                        <div><b>{selectedMatch.opponent}</b><span><button onClick={() => changeExactScore(q,"opponent",-1)} disabled={score.opponent===0}>−</button><strong>{score.opponent}</strong><button onClick={() => changeExactScore(q,"opponent",1)}>+</button></span></div>
+                        <p>Si aciertas el marcador exacto sumas <b>20 puntos</b>. Si fallas, no pierdes puntos.</p>
+                        <button className={selected ? "exact-score-submit selected" : "exact-score-submit"} onClick={() => answer(q,value)}>{selected ? `Quitar ${score.kuriyama} – ${score.opponent}` : `Elegir ${score.kuriyama} – ${score.opponent} · +20 pts`}</button>
+                      </div>;
+                    })() : <div className="binary-answers configurable-answers">
                       {q.options.map((option) => (
                         <button
                           key={option.value_key}
@@ -612,7 +638,7 @@ function Home({ view = "matches" }: { view?: "matches" | "predictions" | "histor
                           <small>±{fmt(option.points_value)} pts</small>
                         </button>
                       ))}
-                    </div>
+                    </div>}
                   </article>
                 ))}
               </div>
@@ -712,7 +738,7 @@ function RankingTable({
                       <small>{date(p.kickoff_at)}</small>
                     </span>
                     <p>{p.prompt}</p>
-                    <strong>{p.answer_label ?? (p.answer === "YES" ? "SÍ" : p.answer === "NO" ? "NO" : p.answer)}</strong>
+                    <strong>{predictionAnswer(p)}</strong>
                     <StatusBadge status={p.status} />
                     <em>
                       {p.status === "PENDING"
@@ -800,6 +826,7 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
     [copySource, setCopySource] = useState(""),
     [settlementChoices, setSettlementChoices] = useState<Record<string, string[]>>({}),
     [numericResults, setNumericResults] = useState<Record<string, string>>({}),
+    [scoreResults, setScoreResults] = useState<Record<string, { kuriyama: string; opponent: string }>>({}),
     [notice, setNotice] = useState(""),
     [error, setError] = useState("");
   async function loadQuestions(matchId: string) {
@@ -811,6 +838,10 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
           )
         : [],
     );
+  }
+  async function openMatchQuestions(matchId: string) {
+    await loadQuestions(matchId);
+    nav(`/admin/questions?match_id=${encodeURIComponent(matchId)}`);
   }
   async function refresh() {
     const [matchList, predictionList, rankingList, templateList] = await Promise.all([
@@ -828,7 +859,9 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
   useEffect(() => {
     refresh()
       .then((list) => {
-        if (list[0]) loadQuestions(list[0].id);
+        const requestedMatch = new URLSearchParams(location.search).get("match_id");
+        const initialMatch = list.find((match) => match.id === requestedMatch) ?? list[0];
+        if (initialMatch) loadQuestions(initialMatch.id);
       })
       .catch((e) => {
         if (e.message === "No autorizado") nav("/admin/login");
@@ -893,11 +926,13 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
       f = new FormData(form);
     try {
       const type = String(f.get("question_type")) as QuestionType;
-      const points = Number(f.get("points"));
+      const points = type === "EXACT_SCORE" ? 20 : Number(f.get("points"));
       const lines = String(f.get(type === "GOAL_SCORER" ? "players" : "answers") || "")
         .split("\n").map((line) => line.trim()).filter(Boolean);
       let options: Array<{ value_key: string; label: string; points_value: number }>;
-      if (type === "TOTAL_GOALS" || type === "FIRST_HALF_GOALS") {
+      if (type === "EXACT_SCORE") {
+        options = [];
+      } else if (type === "TOTAL_GOALS" || type === "FIRST_HALF_GOALS") {
         const thresholds = type === "TOTAL_GOALS" ? [3.5, 4.5, 5.5] : [1.5, 2.5, 3.5];
         options = thresholds.flatMap((line) => [
           { value_key: `UNDER_${String(line).replace(".", "_")}`, label: `Under ${line}`, points_value: points },
@@ -913,7 +948,7 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
         method: "POST",
         body: JSON.stringify({
           match_id: selected,
-          prompt: f.get("prompt"),
+          prompt: type === "EXACT_SCORE" ? "Marcador correcto" : f.get("prompt"),
           points_value: points,
           status: "OPEN",
           question_type: type,
@@ -968,11 +1003,11 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
       setError((x as Error).message);
     }
   }
-  async function settle(id: string, correctAnswers: string[] = [], numericResult?: number, voidQuestion = false) {
+  async function settle(id: string, correctAnswers: string[] = [], numericResult?: number, voidQuestion = false, scoreResult?: { kuriyama_score: number; opponent_score: number }) {
     try {
       await api("/admin/questions/settle", {
         method: "POST",
-        body: JSON.stringify({ question_id: id, correct_answers: correctAnswers, numeric_result: numericResult, void: voidQuestion }),
+        body: JSON.stringify({ question_id: id, correct_answers: correctAnswers, numeric_result: numericResult, score_result: scoreResult, void: voidQuestion }),
       });
       await loadQuestions(selected);
       setNotice("Pregunta resuelta y puntos calculados");
@@ -1080,7 +1115,7 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
           <h2>Partidos</h2>
           <div className="admin-table match-admin-table">
             <div className="table-head"><span>Partido</span><span>Fecha</span><span>Marcador</span><span>Estado</span><span>Acciones</span></div>
-            {matches.map(m=><form key={m.id} onSubmit={(e)=>saveMatchResult(e,m.id)}><b>Kuriyama vs {m.opponent}</b><span>{date(m.kickoff_at)}</span><div className="score-inputs"><input aria-label="Goles Kuriyama" name="kuriyama_score" type="number" min="0" max="99" defaultValue={m.kuriyama_score ?? ""}/><b>–</b><input aria-label={`Goles ${m.opponent}`} name="opponent_score" type="number" min="0" max="99" defaultValue={m.opponent_score ?? ""}/></div><select name="status" defaultValue={m.status}><option value="OPEN">Próximo / abierto</option><option value="LOCKED">Cerrado</option><option value="FINISHED">Finalizado</option><option value="CANCELLED">Cancelado</option><option value="DRAFT">Borrador</option></select><div className="row-actions"><button>Guardar resultado</button><button type="button" onClick={()=>loadQuestions(m.id)}>Preguntas</button>{deleteMatch===m.id?<><button type="button" onClick={()=>setDeleteMatch('')}>Cancelar</button><button type="button" className="danger-small" onClick={()=>removeMatch(m.id)}>Confirmar</button></>:<button type="button" className="danger-small" onClick={()=>setDeleteMatch(m.id)}><Trash2/> Eliminar</button>}</div></form>)}
+            {matches.map(m=><form key={m.id} onSubmit={(e)=>saveMatchResult(e,m.id)}><b>Kuriyama vs {m.opponent}</b><span>{date(m.kickoff_at)}</span><div className="score-inputs"><input aria-label="Goles Kuriyama" name="kuriyama_score" type="number" min="0" max="99" defaultValue={m.kuriyama_score ?? ""}/><b>–</b><input aria-label={`Goles ${m.opponent}`} name="opponent_score" type="number" min="0" max="99" defaultValue={m.opponent_score ?? ""}/></div><select name="status" defaultValue={m.status}><option value="OPEN">Próximo / abierto</option><option value="LOCKED">Cerrado</option><option value="FINISHED">Finalizado</option><option value="CANCELLED">Cancelado</option><option value="DRAFT">Borrador</option></select><div className="row-actions"><button>Guardar resultado</button><button type="button" onClick={()=>openMatchQuestions(m.id)}>Preguntas</button>{deleteMatch===m.id?<><button type="button" onClick={()=>setDeleteMatch('')}>Cancelar</button><button type="button" className="danger-small" onClick={()=>removeMatch(m.id)}>Confirmar</button></>:<button type="button" className="danger-small" onClick={()=>setDeleteMatch(m.id)}><Trash2/> Eliminar</button>}</div></form>)}
           </div>
         </section>
         </>}
@@ -1124,9 +1159,10 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
                   <option value="TOTAL_GOALS">Cantidad de goles</option>
                   <option value="FIRST_HALF_GOALS">Goles en la primera mitad</option>
                   <option value="GOAL_SCORER">Jugador que meterá gol</option>
+                  <option value="EXACT_SCORE">Marcador correcto (+20, sin penalización)</option>
                 </select>
               </label>
-              <label>
+              {newQuestionType !== "EXACT_SCORE" && <label>
                 Pregunta o sentencia
                 <textarea
                   name="prompt"
@@ -1135,8 +1171,8 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
                   placeholder="Ej. ¿Quién marcará gol?"
                   required
                 />
-              </label>
-              <label>
+              </label>}
+              {newQuestionType !== "EXACT_SCORE" && <label>
                 Puntos
                 <input
                   name="points"
@@ -1147,7 +1183,8 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
                   placeholder="+3"
                   required
                 />
-              </label>
+              </label>}
+              {newQuestionType === "EXACT_SCORE" && <p className="admin-help wide-field">Esta pregunta aparecerá siempre primero. El usuario elegirá los goles con un contador; acertar suma 20 puntos y fallar no resta puntos.</p>}
               {newQuestionType === "CUSTOM" && (
                 <label className="wide-field">Respuestas (una por línea; opcionalmente Respuesta | puntos)
                   <textarea name="answers" defaultValue={"Sí\nNo"} required />
@@ -1220,7 +1257,11 @@ function AdminQuestions({ view = "matches" }: { view?: "matches" | "questions" |
                       <input className="result-input" type="number" min="0" step="1" placeholder="Goles reales" value={numericResults[q.id] ?? ""} onChange={(e) => setNumericResults((current) => ({ ...current, [q.id]: e.target.value }))} />
                       <button type="button" onClick={() => settle(q.id, [], Number(numericResults[q.id]))} disabled={!numericResults[q.id]}>Calcular resultado</button>
                     </>}
-                    {q.status !== "SETTLED" && q.question_type !== "TOTAL_GOALS" && q.question_type !== "FIRST_HALF_GOALS" && <>
+                    {q.status !== "SETTLED" && q.question_type === "EXACT_SCORE" && <>
+                      <div className="admin-score-result"><input type="number" min="0" max="99" placeholder="Kuriyama" value={scoreResults[q.id]?.kuriyama ?? ""} onChange={(e) => setScoreResults((current) => ({ ...current, [q.id]: { kuriyama: e.target.value, opponent: current[q.id]?.opponent ?? "" } }))}/><b>–</b><input type="number" min="0" max="99" placeholder="Rival" value={scoreResults[q.id]?.opponent ?? ""} onChange={(e) => setScoreResults((current) => ({ ...current, [q.id]: { kuriyama: current[q.id]?.kuriyama ?? "", opponent: e.target.value } }))}/></div>
+                      <button type="button" disabled={!scoreResults[q.id]?.kuriyama || !scoreResults[q.id]?.opponent} onClick={() => settle(q.id, [], undefined, false, { kuriyama_score: Number(scoreResults[q.id].kuriyama), opponent_score: Number(scoreResults[q.id].opponent) })}>Resolver marcador</button>
+                    </>}
+                    {q.status !== "SETTLED" && q.question_type !== "TOTAL_GOALS" && q.question_type !== "FIRST_HALF_GOALS" && q.question_type !== "EXACT_SCORE" && <>
                       <div className="settlement-options">
                         {q.options.map((option) => <button type="button" key={option.value_key} className={(settlementChoices[q.id] ?? []).includes(option.value_key) ? "selected-correct" : ""} onClick={() => toggleSettlement(q.id, option.value_key)}>{option.label}</button>)}
                       </div>
