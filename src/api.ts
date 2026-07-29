@@ -8,5 +8,5 @@ export type MarketRow={id:string;title:string;market_type:string;line:number|nul
 export type Pick={id:string;opponent:string;market_title:string;option_label:string;odds_snapshot:number;created_at:string;status:string;points_awarded:number}
 export type QuestionOption={id:string;question_id:string;value_key:string;label:string;points_value:number;sort_order:number}
 export type QuestionType='CUSTOM'|'TOTAL_GOALS'|'FIRST_HALF_GOALS'|'GOAL_SCORER'
-export type Question={id:string;match_id:string;prompt:string;points_value:number;status:string;question_type:QuestionType;kickoff_at:string;picks_close_at:string;options:QuestionOption[];prediction_answer?:string;prediction_status?:string;points_awarded?:number}
+export type Question={id:string;match_id:string;prompt:string;points_value:number;status:string;question_type:QuestionType;kickoff_at:string;picks_close_at:string;options:QuestionOption[];prediction_answers?:string[];prediction_answer?:string;prediction_status?:string;points_awarded?:number}
 export type Prediction={id:string;user_id:string;match_id:string;question_id:string;answer:string;answer_label?:string;points_snapshot:number;status:'PENDING'|'CORRECT'|'INCORRECT'|'VOID';points_awarded:number;prompt:string;opponent:string;kickoff_at:string}

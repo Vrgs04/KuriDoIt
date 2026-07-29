@@ -479,18 +479,23 @@ function Home() {
   async function answer(question: Question, value: string) {
     if (!user.token) return;
     try {
-      const removing = question.prediction_answer === value;
+      const selectedAnswers = question.prediction_answers ?? (question.prediction_answer ? [question.prediction_answer] : []);
+      const removing = selectedAnswers.includes(value);
       await api("/predictions", {
         method: removing ? "DELETE" : "POST",
         headers: { Authorization: `Bearer ${user.token}` },
         body: JSON.stringify(removing
-          ? { user_id: user.id, question_id: question.id }
+          ? { user_id: user.id, question_id: question.id, answer: value }
           : { user_id: user.id, question_id: question.id, answer: value }),
       });
       setQuestions((current) =>
         current.map((q) =>
           q.id === question.id
-            ? { ...q, prediction_answer: removing ? undefined : value, prediction_status: removing ? undefined : "PENDING" }
+            ? (() => {
+                const prior = q.prediction_answers ?? (q.prediction_answer ? [q.prediction_answer] : []);
+                const answers = removing ? prior.filter((answer) => answer !== value) : q.question_type === "GOAL_SCORER" ? [...prior, value] : [value];
+                return { ...q, prediction_answers: answers, prediction_answer: answers[0], prediction_status: answers.length ? "PENDING" : undefined };
+              })()
             : q,
         ),
       );
@@ -569,15 +574,16 @@ function Home() {
                       <span>
                         Valor: <strong>±{fmt(q.points_value)} puntos</strong>
                       </span>
+                      {q.question_type === "GOAL_SCORER" && (q.prediction_answers?.length ?? 0) > 0 && <span>Selecciones: <strong>{q.prediction_answers?.length}</strong> · Riesgo total: <strong>±{fmt(q.options.filter((option) => q.prediction_answers?.includes(option.value_key)).reduce((sum, option) => sum + Number(option.points_value), 0))} puntos</strong></span>}
                     </div>
                     <div className="binary-answers configurable-answers">
                       {q.options.map((option) => (
                         <button
                           key={option.value_key}
-                          className={q.prediction_answer === option.value_key ? "selected yes" : ""}
+                          className={(q.prediction_answers ?? (q.prediction_answer ? [q.prediction_answer] : [])).includes(option.value_key) ? "selected yes" : ""}
                           onClick={() => answer(q, option.value_key)}
                         >
-                          {q.prediction_answer === option.value_key && <Check />}
+                          {(q.prediction_answers ?? (q.prediction_answer ? [q.prediction_answer] : [])).includes(option.value_key) && <Check />}
                           <span>{option.label}</span>
                           <small>±{fmt(option.points_value)} pts</small>
                         </button>
@@ -744,6 +750,7 @@ function AdminQuestions() {
     settled_at?: string;
   };
   type AdminPrediction = Prediction & { name: string };
+  type QuestionTemplate = AdminQuestion & { opponent: string };
   type RankingUser = {
     id: string;
     name: string;
@@ -757,12 +764,14 @@ function AdminQuestions() {
     [matches, setMatches] = useState<Match[]>([]),
     [selected, setSelected] = useState(""),
     [questions, setQuestions] = useState<AdminQuestion[]>([]),
+    [templates, setTemplates] = useState<QuestionTemplate[]>([]),
     [predictions, setPredictions] = useState<AdminPrediction[]>([]),
     [ranking, setRanking] = useState<RankingUser[]>([]),
     [deleteMatch, setDeleteMatch] = useState(""),
     [deletePrediction, setDeletePrediction] = useState(""),
     [moderateUser, setModerateUser] = useState(""),
     [newQuestionType, setNewQuestionType] = useState<QuestionType>("CUSTOM"),
+    [copySource, setCopySource] = useState(""),
     [settlementChoices, setSettlementChoices] = useState<Record<string, string[]>>({}),
     [numericResults, setNumericResults] = useState<Record<string, string>>({}),
     [notice, setNotice] = useState(""),
@@ -778,14 +787,16 @@ function AdminQuestions() {
     );
   }
   async function refresh() {
-    const [matchList, predictionList, rankingList] = await Promise.all([
+    const [matchList, predictionList, rankingList, templateList] = await Promise.all([
       api<Match[]>("/matches"),
       api<AdminPrediction[]>("/admin/predictions"),
       api<RankingUser[]>("/leaderboard"),
+      api<QuestionTemplate[]>("/admin/question-templates"),
     ]);
     setMatches(matchList);
     setPredictions(predictionList);
     setRanking(rankingList);
+    setTemplates(templateList);
     return matchList;
   }
   useEffect(() => {
@@ -871,6 +882,21 @@ function AdminQuestions() {
       form.reset();
       await loadQuestions(selected);
       setNotice("Pregunta creada correctamente");
+    } catch (x) {
+      setError((x as Error).message);
+    }
+  }
+  async function copyQuestion() {
+    if (!selected || !copySource) return;
+    try {
+      await api("/admin/questions/copy", {
+        method: "POST",
+        body: JSON.stringify({ source_question_id: copySource, match_id: selected }),
+      });
+      setCopySource("");
+      await loadQuestions(selected);
+      await refresh();
+      setNotice("Pregunta y respuestas copiadas correctamente");
     } catch (x) {
       setError((x as Error).message);
     }
@@ -1028,6 +1054,18 @@ function AdminQuestions() {
         {selected && (
           <section className="admin-card nested-admin-card">
             <h2>Nueva pregunta</h2>
+            <div className="copy-question-row">
+              <label>Copiar una pregunta anterior con todas sus respuestas y puntos
+                <select value={copySource} onChange={(e) => setCopySource(e.target.value)}>
+                  <option value="">Selecciona una pregunta anterior</option>
+                  {templates.filter((template) => template.match_id !== selected).map((template) => (
+                    <option key={template.id} value={template.id}>{template.prompt} · vs {template.opponent}</option>
+                  ))}
+                </select>
+              </label>
+              <button type="button" className="primary-button" disabled={!copySource} onClick={copyQuestion}>COPIAR PREGUNTA Y RESPUESTAS</button>
+            </div>
+            <div className="admin-divider"><span>o crea una nueva</span></div>
             <form className="question-admin-form" onSubmit={create}>
               <label>
                 Tipo de pregunta
